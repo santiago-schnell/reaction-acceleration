@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reaction-acceleration"
+version = "0.1.0"
+description = "Reaction acceleration (curvature) analysis from kinetic progress curves."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Santiago Schnell", email = "santiago.schnell@dartmouth.edu" },
+]
+keywords = [
+  "chemical kinetics",
+  "systems chemistry",
+  "progress curves",
+  "smoothing splines",
+  "second derivative",
+  "bootstrap",
+]
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3.0",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+  "numpy>=1.22",
+  "scipy>=1.8",
+]
+
+[project.optional-dependencies]
+viz = [
+  "matplotlib>=3.6",
+]
+dev = [
+  "pytest>=7.0",
+  "ruff>=0.3",
+  "black>=23.0",
+]
+
+[project.scripts]
+ra-sanity = "reaction_acceleration.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/santiago-schnell/reaction-acceleration"
+Repository = "https://github.com/santiago-schnell/reaction-acceleration"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
