@@ -169,16 +169,6 @@ print(f"t*: {est:.3f} s (95% CI [{lo:.3f}, {hi:.3f}])")
 See `docs/methodology-notes.md` for a short, practical discussion.
 
 
-## Before publishing the repo
-
-Two files contain placeholders for the GitHub URL:
-
-- `CITATION.cff` (field: `repository-code`)
-- `pyproject.toml` (fields: `Homepage`, `Repository`)
-
-Update them to match your final repository URL.
-
-
 ## License
 
 GNU General Public License v3.0 (see `LICENSE`).
