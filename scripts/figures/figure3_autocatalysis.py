@@ -3,8 +3,6 @@ Figure 3: Autocatalysis Diagnostic
 ----------------------------------
 This script generates a three-panel comparison of autocatalytic vs. first-order
 kinetics.
-- Legend removed (info moved to caption).
-- Top margin adjusted to utilize space.
 
 Author: Santiago Schnell
 Contact: santiago.schnell@dartmouth.edu
