@@ -5,7 +5,7 @@ This module implements two approaches:
 1) **Smoothing spline** (recommended): fits `scipy.interpolate.UnivariateSpline`
    and differentiates analytically. Suitable for irregular sampling.
 
-2) **Savitzky–Golay**: local-polynomial filtering (`scipy.signal.savgol_filter`).
+2) **Savitzky-Golay**: local-polynomial filtering (`scipy.signal.savgol_filter`).
    Requires approximately uniform sampling.
 
 Notes
@@ -18,7 +18,7 @@ Notes
 
 from __future__ import annotations
 
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, TypeAlias
 
 import numpy as np
 
@@ -30,7 +30,7 @@ except Exception as e:  # pragma: no cover
 
 
 Method = Literal["spline", "savgol"]
-ArrayLike = Union[np.ndarray, list, tuple]
+ArrayLike: TypeAlias = np.ndarray | list | tuple
 
 
 def _as_1d_float(x: ArrayLike) -> np.ndarray:
@@ -47,13 +47,13 @@ def estimate_derivatives(
     *,
     method: Method = "spline",
     # Spline parameters
-    s: Optional[float] = None,
+    s: float | None = None,
     k: int = 3,
-    w: Optional[ArrayLike] = None,
+    w: ArrayLike | None = None,
     # Savitzky-Golay parameters
     window_length: int = 21,
     polyorder: int = 3,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, object]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, object]:
     """Estimate y(t), dy/dt, and d2y/dt2 from noisy progress-curve data.
 
     Parameters
@@ -70,7 +70,7 @@ def estimate_derivatives(
     w:
         Optional weights for spline fitting (e.g., inverse standard deviation).
     window_length, polyorder:
-        Savitzky–Golay parameters (uniform sampling only). `window_length` must
+        Savitzky-Golay parameters (uniform sampling only). `window_length` must
         be odd and > polyorder.
 
     Returns
@@ -125,7 +125,7 @@ def estimate_derivatives(
             raise ValueError("Invalid time grid.")
         if float(np.std(dt)) > 0.05 * dt_mean:
             raise ValueError(
-                "Savitzky–Golay requires (approximately) uniform sampling; "
+                "Savitzky-Golay requires (approximately) uniform sampling; "
                 "use method='spline' for irregular sampling."
             )
 

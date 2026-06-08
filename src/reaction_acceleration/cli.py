@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         y = np.exp(-k * t)
 
         # Exact (noise-free) data: use interpolating spline
-        yhat, dy, d2y, _ = estimate_derivatives(t, y, method="spline", s=0.0)
+        _yhat, _dy, d2y, _ = estimate_derivatives(t, y, method="spline", s=0.0)
 
         d2y_true = (k**2) * np.exp(-k * t)
         rmse = float(np.sqrt(np.mean((d2y - d2y_true) ** 2)))
