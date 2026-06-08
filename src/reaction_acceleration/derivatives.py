@@ -18,9 +18,15 @@ Notes
 
 from __future__ import annotations
 
-from typing import Literal, TypeAlias
+import sys
+from typing import Literal, Union
 
 import numpy as np
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 try:
     from scipy.interpolate import UnivariateSpline
@@ -30,7 +36,7 @@ except Exception as e:  # pragma: no cover
 
 
 Method = Literal["spline", "savgol"]
-ArrayLike: TypeAlias = np.ndarray | list | tuple
+ArrayLike: TypeAlias = Union[np.ndarray, list, tuple]
 
 
 def _as_1d_float(x: ArrayLike) -> np.ndarray:
