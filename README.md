@@ -391,12 +391,3 @@ is in `CITATION.cff`.
 ## License
 
 GNU General Public License v3.0 — see `LICENSE`.
-
-
-## Archival release
-
-For publication, tag the repository as `v0.5.0` and archive that exact tag
-through Zenodo or an equivalent service. Replace the mutable GitHub-only
-citation in the manuscript with the archived release DOI once it is minted;
-until then, the `CITATION.cff` file records the submitted version and the
-canonical repository URL without inventing a DOI.
