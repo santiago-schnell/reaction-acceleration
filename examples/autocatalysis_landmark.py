@@ -21,11 +21,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import odeint
-import matplotlib.pyplot as plt
 
 from reaction_acceleration import (
+    acceleration_zero_crossing_time,
     estimate_derivatives,
     residual_bootstrap_landmark_ci,
 )
@@ -37,66 +38,46 @@ def autocatalysis_rhs(y, t, k):
     return [-k * A * B, +k * A * B]
 
 
-def landmark_zero_crossing_near_vmax(t, yhat, dy, d2y) -> float:
-    """Robust autocatalytic landmark: pos->neg zero crossing nearest vmax.
+def landmark_inflection(t, yhat, dy, d2y) -> float:
+    """Robust autocatalytic landmark.
 
-    For ideal autocatalysis, the inflection point satisfies:
-      1) d^2B/dt^2 crosses zero (pos -> neg)
-      2) dB/dt is maximal at the same time
-
-    In noisy data, d^2B/dt^2 may have multiple zero-crossings. This detector
-    chooses the pos->neg crossing nearest the time of maximal estimated rate.
+    Thin wrapper around the public :func:`acceleration_zero_crossing_time`:
+    the pos->neg acceleration zero-crossing nearest the rate maximum. This
+    is the recommended detector for sigmoidal progress curves; it is robust
+    to the spurious early zero-crossings that a naive "first crossing"
+    picks up in noisy second-derivative traces.
     """
-    t = np.asarray(t, dtype=float)
-    dy = np.asarray(dy, dtype=float)
-    d2y = np.asarray(d2y, dtype=float)
-
-    t_vmax = float(t[int(np.argmax(dy))])
-
-    candidates: list[float] = []
-    for i in range(1, len(d2y)):
-        z0 = float(d2y[i - 1])
-        z1 = float(d2y[i])
-        if z0 > 0.0 and z1 < 0.0:
-            t0 = float(t[i - 1])
-            t1 = float(t[i])
-            if z1 != z0:
-                tc = t0 - z0 * (t1 - t0) / (z1 - z0)
-                candidates.append(float(tc))
-
-    if not candidates:
-        return float("nan")
-
-    cand = np.asarray(candidates, dtype=float)
-    return float(cand[int(np.argmin(np.abs(cand - t_vmax)))])
+    return acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
 
 
 def main() -> None:
-    rng = np.random.default_rng(0)
+    # Data seed fixed for reproducibility; matches SI Sec. 7.3 and the
+    # Sec. 9 listing so the example, the listing, and the table all agree.
+    rng = np.random.default_rng(42)
 
     # ----------------------------------------------------------------------
-    # 1) Synthetic data
+    # 1) Synthetic data (canonical SI parameters)
     # ----------------------------------------------------------------------
     k = 1.5
-    y0 = [0.98, 0.02]  # [A]0, [B]0
-    t = np.linspace(0.0, 6.0, 180)
+    y0 = [0.98, 0.02]  # [A]0, [B]0  ->  A_tot = A0 + B0 = 1.0
+    t = np.linspace(0.0, 6.0, 100)
 
     sol = odeint(autocatalysis_rhs, y0, t, args=(k,))
     B_true = sol[:, 1]
 
-    sigma = 0.008
+    sigma = 0.01
     B_obs = B_true + rng.normal(0.0, sigma, size=B_true.shape)
 
     # ----------------------------------------------------------------------
     # 2) Derivative estimation (smoothing spline)
     # ----------------------------------------------------------------------
     # Heuristic: s ~= N * sigma^2 ; for second-derivative stability we use
-    # a slightly larger factor.
+    # a slightly larger factor (s = 2 N sigma^2).
     s = 2.0 * len(t) * (sigma**2)
 
     B_hat, dB_hat, d2B_hat, _model = estimate_derivatives(t, B_obs, method="spline", s=s)
 
-    t_star = landmark_zero_crossing_near_vmax(t, B_hat, dB_hat, d2B_hat)
+    t_star = landmark_inflection(t, B_hat, dB_hat, d2B_hat)
 
     # ----------------------------------------------------------------------
     # 3) Bootstrap CI
@@ -104,10 +85,10 @@ def main() -> None:
     est, lo, hi = residual_bootstrap_landmark_ci(
         t,
         B_obs,
-        landmark_fn=landmark_zero_crossing_near_vmax,
+        landmark_fn=landmark_inflection,
         method="spline",
         s=s,
-        n_boot=400,
+        n_boot=500,
         alpha=0.05,
         seed=1,
     )
@@ -115,13 +96,22 @@ def main() -> None:
     # ----------------------------------------------------------------------
     # 4) Report
     # ----------------------------------------------------------------------
+    # For A_tot = 1.0 and B0 = 0.02, the true inflection is:
+    #   t*_true = ln((A_tot - B0) / B0) / (k * A_tot) = ln(49) / 1.5 ~ 2.595 s
+    A_tot = sum(y0)
+    t_true = float(np.log((A_tot - y0[1]) / y0[1]) / (k * A_tot))
+
     print("\n" + "=" * 68)
     print("Autocatalysis landmark: acceleration zero-crossing near v_max")
     print("=" * 68)
-    print(f"  Smoothing factor (s)     : {s:.4e}")
-    print(f"  Base-fit estimate (t*)   : {t_star:.4f} s")
-    print(f"  Bootstrap base estimate  : {est:.4f} s")
-    print(f"  95% CI (percentile)      : [{lo:.4f}, {hi:.4f}] s")
+    print(f"  True inflection (theory)  : {t_true:.4f} s")
+    print(f"  Smoothing factor (s)      : {s:.4e}")
+    print(f"  Base-fit estimate (t*)    : {t_star:.4f} s")
+    print(f"  Bootstrap base estimate   : {est:.4f} s")
+    print(f"  95% CI (percentile)       : [{lo:.4f}, {hi:.4f}] s")
+    print(
+        f"  CI contains truth         : " f"{'yes' if lo <= t_true <= hi else 'no (single-seed)'}"
+    )
     print("=" * 68 + "\n")
 
     # ----------------------------------------------------------------------
@@ -130,7 +120,7 @@ def main() -> None:
     outdir = Path(__file__).resolve().parents[1] / "outputs" / "examples"
     outdir.mkdir(parents=True, exist_ok=True)
 
-    fig, axes = plt.subplots(2, 1, figsize=(6, 6), sharex=True)
+    _fig, axes = plt.subplots(2, 1, figsize=(6, 6), sharex=True)
 
     ax0 = axes[0]
     ax0.scatter(t, B_obs, s=10, color="gray", alpha=0.5, label="Noisy data")
@@ -148,7 +138,7 @@ def main() -> None:
     ax1.set_ylabel(r"$d^2B/dt^2$")
     ax1.set_xlabel("Time (s)")
     ax1.legend(loc="upper right", frameon=False)
-    ax1.set_title("Step 2: Identifying the fingerprint", fontsize=10, fontweight="bold")
+    ax1.set_title("Step 2: Identifying the landmark", fontsize=10, fontweight="bold")
 
     plt.tight_layout()
 
