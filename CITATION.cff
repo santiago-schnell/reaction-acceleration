@@ -1,22 +1,23 @@
 cff-version: 1.2.0
 message: >-
-  If you use this software, please cite the accompanying Concept article and/or
-  this repository.
+  If you use this software, please cite the accompanying research article
+  and/or this repository.
 title: "reaction-acceleration"
-version: 0.1.0
-date-released: 2026-01-18
-license: GNU General Public License v3.0
-repository-code: "https://github.com/santiago-schnell/reaction-accelerationn"
+version: 0.5.0
+date-released: 2026-06-03
+license: GPL-3.0-only
+repository-code: "https://github.com/santiago-schnell/reaction-acceleration"
 authors:
   - family-names: Schnell
     given-names: Santiago
     email: santiago.schnell@dartmouth.edu
+    affiliation: "Dartmouth College"
 preferred-citation:
   type: article
   authors:
     - family-names: Schnell
       given-names: Santiago
-  title: "Reaction Acceleration: Kinetic Curvature as a Mechanistic Fingerprint"
+  title: "Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics"
   journal: "ChemSystemsChem"
-  year: 2025
+  year: 2026
   status: "submitted"

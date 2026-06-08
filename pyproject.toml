@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reaction-acceleration"
-version = "0.1.0"
+version = "0.5.0"
 description = "Reaction acceleration (curvature) analysis from kinetic progress curves."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,7 +21,7 @@ keywords = [
   "bootstrap",
 ]
 classifiers = [
-  "License :: OSI Approved :: GNU General Public License v3.0",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.9",
@@ -60,10 +60,31 @@ package-dir = {"" = "src"}
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-q"
-testpaths = ["tests"]
+testpaths = ["test"]
 
 [tool.black]
 line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py39"
+extend-exclude = ["outputs", "build", "dist"]
+
+[tool.ruff.lint]
+# Enabled rule families:
+#   E, W  - pycodestyle errors and warnings
+#   F     - pyflakes
+#   I     - isort import ordering
+#   B     - flake8-bugbear (likely bugs)
+#   UP    - pyupgrade (modern Python syntax)
+#   NPY   - numpy-specific lints
+#   RUF   - Ruff-native rules
+select = ["E", "W", "F", "I", "B", "UP", "NPY", "RUF"]
+ignore = [
+  "E501",    # line-too-long: handled by black
+  "B008",    # function call in default argument: intentional in some scientific code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test/*.py" = ["E402"]
