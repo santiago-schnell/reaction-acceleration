@@ -1,225 +1,194 @@
-"""
-Figure 4: Kinetic Fingerprint of the Oregonator Model
------------------------------------------------------
-This script generates a high-quality 3-panel figure illustrating the
-limit cycle dynamics and the "acceleration fingerprint" of the
-Belousov-Zhabotinsky reaction (Oregonator model).
+r"""
+Figure 4: Oregonator Acceleration Landmarks
+-------------------------------------------------------
+This script generates a three-panel figure illustrating acceleration landmarks
+in the Oregonator representation of the Belousov-Zhabotinsky reaction.
+
+The rate `dZ/dt` and acceleration `d2Z/dt2` are computed directly from the
+mathematical identity of the model equations, precluding numerical differentiation
+artifacts.
+
+Designed for absolute reproducibility, this script meticulously details
+the kinetic parameters, numerical solutions to the differential equations,
+and the explicit rendering logic utilized to generate the publication-quality
+schematics.
 
 Author: Santiago Schnell
 Contact: santiago.schnell@dartmouth.edu
 Affiliation: Department of Mathematics, Dartmouth; Department of Biochemistry
-    & Cell Biology, and Department of Biomedical Data Sciences, Geisel School
-    of Medicine at Dartmouth, Hanover, New Hampshire, USA
-
-Key Features:
-1.  **Layout**: 1 row x 3 columns with custom asymmetric spacing to
-    accommodate the secondary Y-axis in the middle panel.
-2.  **Panels**:
-    - (a) Phase Space: Limit cycle ($[HBrO_2]$ vs. $[Ce^{4+}]$) with
-          direction arrows and red dots marking inflection points.
-    - (b) Time Series: Concentration ($[Z]$) and Rate ($dZ/dt$) on dual axes.
-    - (c) Acceleration: $d^2Z/dt^2$ with sign-based shading (Green/Orange).
-3.  **Style**: Minimalist, publication-quality (Arial/Helvetica fonts).
-    - No internal legends or chart junk.
-    - Panel labels (a, b, c) placed outside the axes.
+    & Cell Biology, and Biomedical Data Sciences, Geisel School of Medicine.
 
 Outputs:
     - Figure4_oregonator.pdf
     - Figure4_oregonator.png
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
+from __future__ import annotations
+
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+from _style import apply_style
 from matplotlib.ticker import AutoMinorLocator
 from scipy.integrate import odeint
 
 # ------------------------------------------------------------------------------
-# 1. Configuration & Style
+# 1. Configuration & Style Integration
 # ------------------------------------------------------------------------------
-# Update matplotlib rcParams for publication-quality rendering
-plt.rcParams.update({
-    'font.family': 'sans-serif',
-    'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
-    'font.size': 9,
-    'axes.labelsize': 10,
-    'axes.titlesize': 11,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 9,
-    'figure.dpi': 300,
-    'lines.linewidth': 1.5,
-})
+apply_style()
 
-# Define a consistent color palette matching Figs 1-3
-colors = {
-    'Z': '#2166AC',          # Blue (Concentration)
-    'Rate': '#B2182B',       # Red (Rate)
-    'accel_pos': '#4DAF4A',  # Green (Positive Acceleration)
-    'accel_neg': '#E66101',  # Orange (Negative Acceleration)
-    'gray': '#666666',       # Gray for axes/grid
-    'dot': '#D00000',        # Red dot for inflection points
+COLORS = {
+    "Z": "#2166AC",  # Blue (Oxidized species / Cerium)
+    "Rate": "#B2182B",  # Red (Kinetic Rate)
+    "accel_pos": "#4DAF4A",  # Green (Positive Acceleration phase)
+    "accel_neg": "#E66101",  # Orange (Negative Acceleration phase)
+    "gray": "#666666",  # Guide lines
+    "dot": "#D00000",  # Red (Zero-crossing markers)
 }
 
 # ------------------------------------------------------------------------------
-# 2. Data Generation (Oregonator Model)
+# 2. Mathematical Definition & Data Generation
 # ------------------------------------------------------------------------------
-# Dimensionless parameters for the Oregonator model
-epsilon = 0.04
-epsilon_prime = 0.0004
-f = 1.0
-q = 0.0008
+# Classical dimensionless parameters for the Oregonator model
+EPSILON = 0.04
+EPSILON_PRIME = 0.0004
+F_STOICH = 1.0
+Q_PARAM = 0.0008
 
-def oregonator(y, t, eps, eps_p, f, q):
-    """
-    Defines the Oregonator differential equations.
-    x: [HBrO2], Y: [Br-], z: [Ce4+]
-    """
-    x, Y, z = y
-    # Clamp values to avoid numerical instability near zero
-    x = max(x, 1e-12)
-    Y = max(Y, 1e-12)
-    z = max(z, 1e-12)
-    
-    dxdt = (q * Y - x * Y + x * (1 - x)) / eps
-    dYdt = (-q * Y - x * Y + f * z) / eps_p
+
+def oregonator_rates(state: np.ndarray | list[float]) -> np.ndarray:
+    """Compute the Oregonator rate vector for state = (X, Y, Z)."""
+    x, y, z = state
+    # Prevent variables from approaching zero to maintain numerical stability
+    x, y, z = max(float(x), 1e-12), max(float(y), 1e-12), max(float(z), 1e-12)
+
+    # Differential equations describing the non-linear kinetic topology
+    dxdt = (Q_PARAM * y - x * y + x * (1.0 - x)) / EPSILON
+    dydt = (-Q_PARAM * y - x * y + F_STOICH * z) / EPSILON_PRIME
     dzdt = x - z
-    return [dxdt, dYdt, dzdt]
 
-# Integration Setup
-# Use high resolution (8000 points) to capture stiff relaxation oscillations accurately
-t = np.linspace(0, 40, 8000)
-dt = t[1] - t[0]
-y0 = [0.1, 0.1, 0.1] # Initial conditions
-sol = odeint(oregonator, y0, t, args=(epsilon, epsilon_prime, f, q))
+    return np.array([dxdt, dydt, dzdt], dtype=float)
 
-# Transient Removal
-# Skip the initial portion to ensure the system has settled onto the limit cycle
+
+def oregonator_rhs(state, _time):
+    return oregonator_rates(state)
+
+
+def zero_crossing_indices(values, min_distance=20):
+    """Isolate de-duplicated sign-change indices to identify kinetic shifts."""
+    raw = [i for i in range(1, len(values)) if values[i - 1] * values[i] < 0]
+    clean = []
+    for idx in raw:
+        if not clean or idx - clean[-1] > min_distance:
+            clean.append(idx)
+    return clean
+
+
+# High-resolution temporal integration to resolve rapid relaxation oscillations
+time = np.linspace(0.0, 40.0, 8000)
+solution = odeint(oregonator_rhs, [0.1, 0.1, 0.1], time)
+
+# Discard initial transient state to focus entirely on the stabilized limit cycle
 skip = 2000
-t_plot = t[skip:] - t[skip]
-X_plot = sol[skip:, 0]
-Z_plot = sol[skip:, 2]
+time_plot = time[skip:] - time[skip]
+solution_plot = solution[skip:, :]
+X_plot = solution_plot[:, 0]
+Z_plot = solution_plot[:, 2]
 
-# Calculate Derivatives
-# Rate (v) and Acceleration (a) for variable Z
-dZdt = np.gradient(Z_plot, dt)
-d2Zdt2 = np.gradient(dZdt, dt)
+# Derive the precise rates and acceleration from the analytical identities
+rates_plot = np.array([oregonator_rates(row) for row in solution_plot])
+dZdt = rates_plot[:, 2]
+d2Zdt2 = rates_plot[:, 0] - rates_plot[:, 2]
 
-# Identify Inflection Points (Zero Crossings of Acceleration)
-zero_crossings_idx = []
-for i in range(1, len(d2Zdt2)):
-    if d2Zdt2[i-1] * d2Zdt2[i] < 0: # Check for sign change
-        zero_crossings_idx.append(i)
-
-# Filter Inflection Points
-# Remove duplicate detections caused by numerical noise (points too close together)
-clean_inf_idx = []
-if len(zero_crossings_idx) > 0:
-    clean_inf_idx.append(zero_crossings_idx[0])
-    for idx in zero_crossings_idx[1:]:
-        if idx - clean_inf_idx[-1] > 20: # Minimum distance threshold
-            clean_inf_idx.append(idx)
-
-# Window Selection
-# Select a time window of ~2 cycles (approx t=0 to 18) for clear visualization
-# This "zoom" makes the individual phases of the oscillation distinct.
+# Truncate the time series to approximately two complete oscillations
 end_idx = 3600
-t_win = t_plot[:end_idx]
+time_win = time_plot[:end_idx]
 X_win = X_plot[:end_idx]
 Z_win = Z_plot[:end_idx]
 rate_win = dZdt[:end_idx]
 accel_win = d2Zdt2[:end_idx]
 
-# Extract inflection points within the selected window
-inf_idx_win = [i for i in clean_inf_idx if i < end_idx]
-t_inf = t_plot[inf_idx_win]
-Z_inf = Z_plot[inf_idx_win]
-X_inf = X_plot[inf_idx_win]
-rate_inf = dZdt[inf_idx_win]
+# Map the exact zero crossings representing the bounds of the autocatalytic phase
+inflection_idx = [idx for idx in zero_crossing_indices(d2Zdt2) if idx < end_idx]
+time_inf, X_inf, Z_inf, rate_inf = (
+    time_plot[inflection_idx],
+    X_plot[inflection_idx],
+    Z_plot[inflection_idx],
+    dZdt[inflection_idx],
+)
 
 # ------------------------------------------------------------------------------
-# 3. Plotting with Explicit Layout
+# 3. Graphical Rendering
 # ------------------------------------------------------------------------------
-# Use specific figsize as requested for optimal spacing
 fig = plt.figure(figsize=(8.5, 2.3))
+width, height, bottom = 0.23, 0.72, 0.20
 
-# Define geometry [left, bottom, width, height]
-# Width of each panel (fraction of figure width)
-w = 0.23
-h = 0.72
-b = 0.20
+# Manual axis geometry assignment for pristine multi-panel alignment
+ax1 = fig.add_axes([0.08, bottom, width, height])
+ax2 = fig.add_axes([0.39, bottom, width, height])
+ax3 = fig.add_axes([0.75, bottom, width, height])
 
-# Horizontal positions (customized for spacing)
-l1 = 0.08  # Panel (a) start
-l2 = 0.39  # Panel (b) start (Gap (a)-(b) ~ 0.08)
-l3 = 0.75  # Panel (c) start (Gap (b)-(c) ~ 0.13 to fit secondary Y-axis)
+# --- Panel (a): Phase-space Projection ---
+ax1.plot(X_win, Z_win, color=COLORS["gray"], linewidth=1.2)
+ax1.scatter(X_inf, Z_inf, color=COLORS["dot"], s=25, zorder=10)
 
-ax1 = fig.add_axes([l1, b, w, h])
-ax2 = fig.add_axes([l2, b, w, h])
-ax3 = fig.add_axes([l3, b, w, h])
+# Render directional flow vectors along the limit cycle
+last_arrow_pos = np.array([-999.0, -999.0])
+for i in range(0, len(X_win) - 5, 50):
+    current = np.array([X_win[i], Z_win[i]])
+    if np.linalg.norm(current - last_arrow_pos) > 0.15:
+        ax1.annotate(
+            "",
+            xy=(X_win[i + 5], Z_win[i + 5]),
+            xytext=(X_win[i], Z_win[i]),
+            arrowprops={"arrowstyle": "->", "color": COLORS["gray"], "lw": 1},
+        )
+        last_arrow_pos = current
 
-# --- Panel (a): Phase Space ---
-ax1.plot(X_win, Z_win, color=colors['gray'], linewidth=1.2)
-ax1.scatter(X_inf, Z_inf, color=colors['dot'], s=25, zorder=10)
+ax1.set_xlabel(r"[HBrO$_2$] ($X$)")
+ax1.set_ylabel(r"[Ce$^{4+}$] ($Z$)")
+ax1.text(-0.25, 1.05, "(a)", transform=ax1.transAxes, fontweight="bold", fontsize=10)
 
-# Add Direction Arrows
-# Place arrows based on Euclidean distance to avoid clustering near origin
-arrow_dist_threshold = 0.15
-last_arrow_pos = np.array([-999, -999])
-for i in range(0, len(X_win)-5, 50):
-    curr_pos = np.array([X_win[i], Z_win[i]])
-    dist = np.linalg.norm(curr_pos - last_arrow_pos)
-    if dist > arrow_dist_threshold:
-        ax1.annotate('', xy=(X_win[i+5], Z_win[i+5]), xytext=(X_win[i], Z_win[i]),
-                     arrowprops=dict(arrowstyle='->', color=colors['gray'], lw=1))
-        last_arrow_pos = curr_pos
+# --- Panel (b): Concentration and Velocity ---
+ax2.plot(time_win, Z_win, color=COLORS["Z"], linewidth=1.5)
+ax2.set_xlabel("Time (dimensionless)")
+ax2.set_ylabel(r"[Ce$^{4+}$] ($Z$)", color=COLORS["Z"])
+ax2.tick_params(axis="y", labelcolor=COLORS["Z"])
+ax2.set_ylim(0, np.max(Z_win) * 1.1)
 
-ax1.set_xlabel(r'[HBrO$_2$] ($X$)')
-ax1.set_ylabel(r'[Ce$^{4+}$] ($Z$)')
-# Panel label placed outside plot area
-ax1.text(-0.20, 1.05, '(a)', transform=ax1.transAxes, fontweight='bold', fontsize=10)
-
-# --- Panel (b): Concentration & Rate ---
-ax2.plot(t_win, Z_win, color=colors['Z'], linewidth=1.5)
-ax2.set_xlabel('Time (dimensionless)')
-ax2.set_ylabel(r'[Ce$^{4+}$] ($Z$)', color=colors['Z'])
-ax2.tick_params(axis='y', labelcolor=colors['Z'])
-ax2.set_ylim(0, np.max(Z_win)*1.1)
-
-# Secondary Axis for Rate
+# Generate a secondary axis to superimpose the kinetic rate
 ax2b = ax2.twinx()
-ax2b.plot(t_win, rate_win, color=colors['Rate'], linewidth=1.0, alpha=0.8, linestyle='--')
-ax2b.set_ylabel('Rate $dZ/dt$', color=colors['Rate'])
-ax2b.tick_params(axis='y', labelcolor=colors['Rate'])
-ax2b.axhline(0, color=colors['gray'], lw=0.5, linestyle=':')
-ax2b.scatter(t_inf, rate_inf, color=colors['dot'], s=20, zorder=10)
+ax2b.plot(time_win, rate_win, color=COLORS["Rate"], linewidth=1.0, alpha=0.8, linestyle="--")
+ax2b.set_ylabel(r"Model rate $dZ/dt$", color=COLORS["Rate"])
+ax2b.tick_params(axis="y", labelcolor=COLORS["Rate"])
+ax2b.axhline(0, color=COLORS["gray"], linewidth=0.5, linestyle=":")
+ax2b.scatter(time_inf, rate_inf, color=COLORS["dot"], s=20, zorder=10)
+ax2.text(-0.25, 1.05, "(b)", transform=ax2.transAxes, fontweight="bold", fontsize=10)
 
-ax2.text(-0.20, 1.05, '(b)', transform=ax2.transAxes, fontweight='bold', fontsize=10)
+# --- Panel (c): Second Derivative (Acceleration) ---
+ax3.plot(time_win, accel_win, color=COLORS["gray"], linewidth=1.0)
+ax3.axhline(0, color=COLORS["gray"], linewidth=0.8)
 
-# --- Panel (c): Acceleration ---
-ax3.plot(t_win, accel_win, color=colors['gray'], linewidth=1.0)
-ax3.axhline(0, color=colors['gray'], lw=0.8)
+# Shading dictates periods of positive acceleration vs. negative acceleration
+ax3.fill_between(time_win, 0, accel_win, where=accel_win > 0, color=COLORS["accel_pos"], alpha=0.3)
+ax3.fill_between(time_win, 0, accel_win, where=accel_win < 0, color=COLORS["accel_neg"], alpha=0.3)
+ax3.scatter(time_inf, np.zeros_like(time_inf), color=COLORS["dot"], s=25, zorder=10)
 
-# Acceleration Shading
-ax3.fill_between(t_win, 0, accel_win, where=(accel_win>0), color=colors['accel_pos'], alpha=0.3)
-ax3.fill_between(t_win, 0, accel_win, where=(accel_win<0), color=colors['accel_neg'], alpha=0.3)
-ax3.scatter(t_inf, np.zeros_like(t_inf), color=colors['dot'], s=25, zorder=10)
+ax3.set_xlabel("Time (dimensionless)")
+ax3.set_ylabel(r"Model accel. $d^2Z/dt^2$")
+ax3.text(-0.25, 1.05, "(c)", transform=ax3.transAxes, fontweight="bold", fontsize=10)
 
-ax3.set_xlabel('Time (dimensionless)')
-ax3.set_ylabel(r'Accel. $d^2Z/dt^2$')
-ax3.text(-0.20, 1.05, '(c)', transform=ax3.transAxes, fontweight='bold', fontsize=10)
+# --- Exterior Label Positioning & Formatting ---
+for axis in [ax1, ax2, ax3]:
+    axis.xaxis.set_minor_locator(AutoMinorLocator())
+    axis.yaxis.set_minor_locator(AutoMinorLocator())
+    axis.tick_params(which="both", direction="in", top=True, right=True)
 
-# --- Formatting ---
-for ax in [ax1, ax2, ax3]:
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.tick_params(which='both', direction='in', top=True, right=True)
-
-# --- Save Output ---
-outdir = Path(__file__).resolve().parents[2] / 'outputs' / 'figures'
+# ------------------------------------------------------------------------------
+# 4. File Output Synthesis
+# ------------------------------------------------------------------------------
+outdir = Path(__file__).resolve().parents[2] / "outputs" / "figures"
 outdir.mkdir(parents=True, exist_ok=True)
-out_pdf = outdir / 'Figure4_oregonator.pdf'
-out_png = outdir / 'Figure4_oregonator.png'
-plt.savefig(out_pdf, format='pdf', bbox_inches='tight', dpi=300)
-plt.savefig(out_png, format='png', bbox_inches='tight', dpi=300)
-print(f"Figures saved: {out_pdf}, {out_png}")
+plt.savefig(outdir / "Figure4_oregonator.pdf", format="pdf", bbox_inches="tight", dpi=300)
+plt.savefig(outdir / "Figure4_oregonator.png", format="png", bbox_inches="tight", dpi=300)
