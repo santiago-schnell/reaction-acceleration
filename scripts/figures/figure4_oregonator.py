@@ -101,7 +101,7 @@ rates_plot = np.array([oregonator_rates(row) for row in solution_plot])
 dZdt = rates_plot[:, 2]
 d2Zdt2 = rates_plot[:, 0] - rates_plot[:, 2]
 
-# Truncate the time series to approximately two complete oscillations
+# Truncate the time series to approximately three relaxation-oscillation cycles
 end_idx = 3600
 time_win = time_plot[:end_idx]
 X_win = X_plot[:end_idx]
