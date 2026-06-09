@@ -115,6 +115,7 @@ def acceleration_zero_crossing_time(
     d2y: np.ndarray,
     *,
     direction: Literal["pos_to_neg", "neg_to_pos"] = "pos_to_neg",
+    edge_fraction: float = 0.05,
 ) -> float:
     """Return the acceleration zero crossing nearest the rate extremum.
 
@@ -142,6 +143,15 @@ def acceleration_zero_crossing_time(
           appropriate for autocatalytic/sigmoidal product curves).
         - ``"neg_to_pos"``: crossing nearest the rate minimum
           (appropriate for the intermediate of a consecutive reaction).
+    edge_fraction:
+        Fraction of the samples at each end of the record that is excluded
+        when locating the rate-extremum anchor and when accepting crossings
+        (default 0.05, i.e. the first and last 5 % of points). Second
+        derivatives are least reliable near the boundaries, and on bootstrap
+        resamples the rate extremum can otherwise migrate to an endpoint and
+        drag the landmark to a spurious tail crossing. The guard is disabled
+        (``edge_fraction <= 0``) for very short records, where it would empty
+        the interior; in that case the unguarded behaviour is recovered.
 
     Returns
     -------
@@ -171,17 +181,28 @@ def acceleration_zero_crossing_time(
 
     want_pos_to_neg = direction == "pos_to_neg"
 
-    # Rate extremum consistent with the crossing direction:
-    # a pos->neg acceleration crossing occurs at a rate maximum,
-    # a neg->pos crossing occurs at a rate minimum.
-    if want_pos_to_neg:
-        t_anchor = float(t_arr[int(np.argmax(dy_arr))])
-    else:
-        t_anchor = float(t_arr[int(np.argmin(dy_arr))])
+    # Interior guard: ignore the first/last ``edge`` samples when locating the
+    # rate-extremum anchor and when accepting crossings. The boundary regions
+    # are where the smoothed second derivative is least reliable (cf. the
+    # boundary-derivative caveat in the SI). On bootstrap resamples the rate
+    # extremum can otherwise migrate to an endpoint, after which the
+    # nearest-crossing rule returns a spurious tail landmark.
+    n = t_arr.size
+    edge = int(np.floor(max(0.0, edge_fraction) * n))
+    edge = min(edge, (n - 1) // 2)  # never empty the interior
+    lo_i, hi_i = edge, n - edge  # interior index range [lo_i, hi_i)
 
-    # Collect every crossing in the requested direction (sub-grid interpolated).
+    # Rate extremum (anchor) restricted to the interior.
+    interior = slice(lo_i, hi_i)
+    if want_pos_to_neg:
+        t_anchor = float(t_arr[lo_i + int(np.argmax(dy_arr[interior]))])
+    else:
+        t_anchor = float(t_arr[lo_i + int(np.argmin(dy_arr[interior]))])
+
+    # Collect every crossing in the requested direction (sub-grid interpolated),
+    # restricted to interior sample pairs.
     crossings = []
-    for i in range(1, t_arr.size):
+    for i in range(max(1, lo_i + 1), hi_i):
         z0 = float(d2y_arr[i - 1])
         z1 = float(d2y_arr[i])
         if want_pos_to_neg:
