@@ -73,3 +73,39 @@ def test_length_mismatch_raises():
     d2y = np.ones(49)
     with pytest.raises(ValueError, match="same length"):
         acceleration_zero_crossing_time(t, dy, d2y)
+
+
+def test_interior_guard_rejects_boundary_anchor():
+    """The interior guard must stop a boundary rate-extremum from capturing
+    the landmark.
+
+    The rate ``dy`` has a genuine interior peak at t = 3 but a slightly larger
+    spike at the final sample; the acceleration ``d2y`` has an interior
+    pos->neg crossing at t ~ 3 and a spurious one near the end. With the guard
+    disabled the anchor migrates to the endpoint and the detector returns the
+    tail crossing; with the default guard the anchor is pinned to the interior
+    and the true crossing is recovered.
+    """
+    t = np.linspace(0.0, 10.0, 100)
+    dy = np.exp(-0.5 * ((t - 3.0) / 0.8) ** 2)
+    dy[-1] = 1.05  # boundary spike -> argmax at the endpoint
+    d2y = -(t - 3.0) * np.exp(-0.5 * ((t - 3.0) / 0.8) ** 2)
+    d2y[-3:] = [0.4, -0.2, -0.5]  # inject a boundary pos->neg crossing
+
+    t_unguarded = acceleration_zero_crossing_time(
+        t, dy, d2y, direction="pos_to_neg", edge_fraction=0.0
+    )
+    t_guarded = acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
+
+    assert t_unguarded > 8.0  # endpoint anchor -> spurious tail crossing
+    assert abs(t_guarded - 3.0) < 0.25  # guard recovers the interior crossing
+
+
+def test_guard_disabled_on_short_records():
+    """For very short records the guard must collapse to the unguarded result
+    rather than emptying the interior."""
+    t = np.array([0.0, 1.0, 2.0])
+    dy = np.array([0.0, 1.0, 0.0])  # peak at the middle sample
+    d2y = np.array([1.0, 0.5, -1.0])  # single pos->neg crossing between i=1,2
+    tc = acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
+    assert np.isfinite(tc) and 1.0 < tc <= 2.0
