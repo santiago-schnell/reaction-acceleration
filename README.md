@@ -121,7 +121,9 @@ python examples/autocatalysis_landmark.py
    (A + B → 2 B, the canonical case from the Supporting Information).
 2. Smooths it with a spline and analytically differentiates twice to
    obtain the reaction acceleration.
-3. Locates the inflection point (where the acceleration crosses zero).
+3. Locates the inflection point (where the acceleration crosses zero) using
+   the crossing nearest the rate maximum, with a small default boundary guard
+   to avoid endpoint artefacts.
 4. Quantifies uncertainty with a residual bootstrap.
 5. Writes a diagnostic plot to `outputs/examples/`.
 
@@ -180,11 +182,11 @@ once. The second runs every test.
 ### Expected output
 
 ```
-.....................                                                    [100%]
-26 passed in 4.32s
+............................                                             [100%]
 ```
 
-If any test fails, it is likely because your NumPy or SciPy version
+There are 28 tests in this checkout. If any test fails, it is likely
+because your NumPy or SciPy version
 differs from the one used to develop the code. The canonical
 autocatalysis regression test has been written to tolerate minor
 numerical drift between versions; a hard failure elsewhere is worth
@@ -221,14 +223,19 @@ yhat, dy, d2y, _model = estimate_derivatives(t, y, method="spline", s=s)
 
 # 2) Locate the inflection point. For sigmoidal (autocatalytic) curves
 #    use acceleration_zero_crossing_time: it returns the positive-to-negative
-#    acceleration crossing nearest the rate maximum, which is robust to the
-#    spurious early zero-crossings that a naive "first crossing" picks up in
-#    noisy second-derivative traces.
-t_star = acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
+#    acceleration crossing nearest the rate maximum. By default, the first
+#    and last 5% of samples are excluded when choosing the rate anchor and
+#    accepting crossings, which avoids spurious boundary landmarks in noisy
+#    second-derivative traces and bootstrap resamples.
+t_star = acceleration_zero_crossing_time(
+    t, dy, d2y, direction="pos_to_neg", edge_fraction=0.05
+)
 
 # 3) Bootstrap confidence interval
 def landmark_fn(t, yhat, dy, d2y):
-    return acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
+    return acceleration_zero_crossing_time(
+        t, dy, d2y, direction="pos_to_neg", edge_fraction=0.05
+    )
 
 est, lo, hi = residual_bootstrap_landmark_ci(
     t, y,
@@ -241,6 +248,34 @@ est, lo, hi = residual_bootstrap_landmark_ci(
 
 print(f"t* = {est:.3f} s (95% CI [{lo:.3f}, {hi:.3f}])")
 ```
+
+### Boundary guard for acceleration landmarks
+
+`acceleration_zero_crossing_time` is deliberately not a naive first-crossing
+detector. It first finds the relevant rate extremum — the maximum for
+`direction="pos_to_neg"`, or the minimum for `direction="neg_to_pos"` — and
+then returns the acceleration zero-crossing nearest that anchor.
+
+The optional `edge_fraction` argument controls a small interior guard. The
+default, `edge_fraction=0.05`, excludes the first and last 5% of samples when
+locating the rate-extremum anchor and when accepting candidate acceleration
+crossings. This is useful because spline and Savitzky–Golay second
+derivatives are least reliable near the ends of the observation window; on
+bootstrap resamples, an endpoint rate spike can otherwise pull the landmark
+toward a spurious tail crossing.
+
+To recover the unguarded behaviour, set the guard to zero:
+
+```python
+t_star = acceleration_zero_crossing_time(
+    t, dy, d2y, direction="pos_to_neg", edge_fraction=0.0
+)
+```
+
+For very short records the guard is automatically clipped so that the
+interior search domain is never emptied. When a reported inflection time is
+close to either end of the sampled interval, report a sensitivity analysis
+over both the smoothing parameter `s` and `edge_fraction`.
 
 ### Diagnostic mode
 
@@ -276,7 +311,9 @@ stable at that data quality.
 | `ValueError: Length mismatch: t (...) vs y (...)` | Your `t` and `y` arrays are different sizes | Trim to the shorter, or align from the raw instrument file |
 | `ValueError: Input contains NaN or infinite values` | Missing or corrupt data | Remove or interpolate the bad samples before calling |
 | `ValueError: ... requires (approximately) uniform sampling` | You asked for Savitzky–Golay on irregular data | Use `method="spline"` instead |
-| Bootstrap returns `NaN` bounds plus a warning | More than 20% of replicates failed; landmark is unstable | Reduce noise, reduce smoothing, or accept that the feature is not reliably detectable |
+| `acceleration_zero_crossing_time` returns `NaN` | No acceleration zero-crossing in the requested direction was found in the accepted region | Inspect the smoothed `d2y`, verify `direction`, adjust `s`, or temporarily set `edge_fraction=0.0` as a diagnostic |
+| Inflection estimate is pulled to the start or end of the record | A boundary artefact or endpoint rate extremum is influencing the acceleration landmark | Use the default `edge_fraction=0.05`; inspect sensitivity to `edge_fraction`; collect a wider time window if the true landmark is near the boundary |
+| Bootstrap returns `NaN` bounds plus a warning | More than 20% of replicates failed; landmark is unstable | Reduce noise, adjust smoothing, inspect the derivative traces, or accept that the feature is not reliably detectable |
 
 ---
 
@@ -371,6 +408,11 @@ than under `outputs/`.
   from the distribution of refitted landmarks. These intervals quantify
   variance conditional on the chosen smoother; smoothing-induced bias must
   be assessed by sensitivity analysis or simulation calibration.
+- **Boundary guard (`edge_fraction`).** The fraction of samples excluded
+  from each end of the record when selecting the acceleration zero-crossing
+  nearest the rate extremum. It is a numerical guard against boundary
+  derivative artefacts, not a mechanistic parameter; setting it to zero
+  recovers the unguarded nearest-crossing rule.
 - **Inflection point.** The time at which the curve's concavity changes
   sign, equivalently where the acceleration is zero. For autocatalytic
   sigmoidal curves this often coincides with the maximum rate.
