@@ -44,9 +44,7 @@ from _si_common import (
 from reaction_acceleration import residual_bootstrap_landmark_ci
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_CSV = (
-    ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
-)
+OUTPUT_CSV = ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
 
 N = 100
 N_REALISATIONS = 50
@@ -90,9 +88,7 @@ def wilson_interval(
     phat = successes / total
     denom = 1.0 + z**2 / total
     centre = (phat + z**2 / (2.0 * total)) / denom
-    half_width = (
-        z * np.sqrt((phat * (1.0 - phat) + z**2 / (4.0 * total)) / total) / denom
-    )
+    half_width = z * np.sqrt((phat * (1.0 - phat) + z**2 / (4.0 * total)) / total) / denom
     return float(max(0.0, centre - half_width)), float(min(1.0, centre + half_width))
 
 
@@ -159,11 +155,7 @@ def compute_metrics() -> list[dict[str, float | int | str]]:
                         covered += 1
 
             ests_arr = np.asarray(ests, dtype=float)
-            bias = (
-                float(np.mean(ests_arr) - T_STAR_TRUE)
-                if ests_arr.size
-                else float("nan")
-            )
+            bias = float(np.mean(ests_arr) - T_STAR_TRUE) if ests_arr.size else float("nan")
             rmse = (
                 float(np.sqrt(np.mean((ests_arr - T_STAR_TRUE) ** 2)))
                 if ests_arr.size
