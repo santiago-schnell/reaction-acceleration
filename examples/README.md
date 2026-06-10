@@ -11,7 +11,7 @@ Information of the paper.
   curve (A + B → 2 B). Simulates noisy data, smooths, differentiates,
   locates the inflection-point landmark, and quantifies its uncertainty
   with a residual bootstrap. Implements the canonical workflow discussed
-  in Supporting Information §4.4, §6.6, and §7.3.
+  in Supporting Information §4.4, §7.6, and §8.3.
 
 ## Running the examples
 

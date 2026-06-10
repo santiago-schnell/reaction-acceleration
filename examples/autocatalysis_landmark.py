@@ -4,9 +4,10 @@ This reproduces the Supporting-Information style workflow:
 
 - simulate A + B -> 2B (mass-action)
 - add homoscedastic Gaussian noise to B(t)
-- estimate derivatives using a smoothing spline
+- estimate derivatives two ways: the fixed-`s` smoothing spline (cautionary,
+  for continuity with the SI tables) and the recommended GCV P-spline
 - extract an inflection-time landmark from the acceleration signal
-- compute a residual-bootstrap confidence interval
+- compute a residual-bootstrap confidence interval for each
 
 Run (from repo root):
 
@@ -51,8 +52,8 @@ def landmark_inflection(t, yhat, dy, d2y) -> float:
 
 
 def main() -> None:
-    # Data seed fixed for reproducibility; matches SI Sec. 7.3 and the
-    # Sec. 9 listing so the example, the listing, and the table all agree.
+    # Data seed fixed for reproducibility; matches SI Sec. 8.3 and the
+    # Sec. 10 listing so the example, the listing, and the table all agree.
     rng = np.random.default_rng(42)
 
     # ----------------------------------------------------------------------
@@ -105,12 +106,29 @@ def main() -> None:
     print("Autocatalysis landmark: acceleration zero-crossing near v_max")
     print("=" * 68)
     print(f"  True inflection (theory)  : {t_true:.4f} s")
+    print("  --- Cautionary: fixed rule s = 2 N sigma^2 ---")
     print(f"  Smoothing factor (s)      : {s:.4e}")
     print(f"  Base-fit estimate (t*)    : {t_star:.4f} s")
     print(f"  Bootstrap base estimate   : {est:.4f} s")
     print(f"  95% CI (percentile)       : [{lo:.4f}, {hi:.4f}] s")
     print(
         f"  CI contains truth         : " f"{'yes' if lo <= t_true <= hi else 'no (single-seed)'}"
+    )
+
+    # Recommended pipeline: GCV-selected penalty (de-biased point estimate).
+    _Bg, dBg, d2Bg, model_gcv = estimate_derivatives(t, B_obs, method="gcv")
+    t_star_gcv = landmark_inflection(t, _Bg, dBg, d2Bg)
+    est_g, lo_g, hi_g = residual_bootstrap_landmark_ci(
+        t, B_obs, landmark_fn=landmark_inflection, method="gcv",
+        n_boot=500, alpha=0.05, seed=1,
+    )
+    print("  --- Recommended: GCV P-spline (data-driven penalty) ---")
+    print(f"  GCV-selected lambda       : {model_gcv['lam']:.4e}")
+    print(f"  Base-fit estimate (t*)    : {t_star_gcv:.4f} s")
+    print(f"  95% CI (percentile)       : [{lo_g:.4f}, {hi_g:.4f}] s")
+    print(
+        f"  CI contains truth         : "
+        f"{'yes' if lo_g <= t_true <= hi_g else 'no (single-seed)'}"
     )
     print("=" * 68 + "\n")
 
