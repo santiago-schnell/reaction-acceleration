@@ -200,3 +200,51 @@ def test_primary_zero_crossing_single_point_returns_nan():
     z = np.array([+1.0])
     tc = primary_zero_crossing_time(t, z, direction="pos_to_neg")
     assert np.isnan(tc)
+
+
+# ---------------------------------------------------------------------------
+# GCV branch (penalized B-spline with GCV-selected penalty)
+# ---------------------------------------------------------------------------
+
+
+def test_gcv_second_derivative_exponential_decay():
+    """GCV P-spline derivatives should be accurate on noiseless smooth data."""
+    t = np.linspace(0.0, 3.0, 200)
+    k = 1.7
+    y = np.exp(-k * t)
+
+    _yhat, _dy, d2y, model = estimate_derivatives(t, y, method="gcv")
+
+    d2y_true = (k**2) * np.exp(-k * t)
+    # Ignore the outermost samples where any spline 2nd derivative is weakest.
+    interior = slice(5, -5)
+    rmse = float(np.sqrt(np.mean((d2y[interior] - d2y_true[interior]) ** 2)))
+    assert rmse < 5e-2
+    assert "lam" in model and model["lam"] > 0
+    assert model["k"] == 4  # quartic basis by default for gcv
+
+
+def test_gcv_recovers_autocatalysis_inflection_with_low_bias():
+    """On noisy logistic data, the GCV landmark should be near-unbiased.
+
+    Contrast with the fixed s = 2 n sigma**2 rule, which carries a
+    systematic downward (earlier-time) bias of order 0.1 s (see SI Sec. 7.6).
+    """
+    from reaction_acceleration import acceleration_zero_crossing_time
+
+    k, a_tot, b0 = 1.5, 1.0, 0.02
+    t = np.linspace(0.0, 6.0, 100)
+    b_true = a_tot / (1.0 + (a_tot - b0) / b0 * np.exp(-k * a_tot * t))
+    t_true = float(np.log((a_tot - b0) / b0) / (k * a_tot))
+
+    rng = np.random.default_rng(0)
+    errs = []
+    for _ in range(20):
+        y = b_true + rng.normal(0.0, 0.01, t.size)
+        _yh, dy, d2y, _ = estimate_derivatives(t, y, method="gcv")
+        est = acceleration_zero_crossing_time(t, dy, d2y, direction="pos_to_neg")
+        if np.isfinite(est):
+            errs.append(est - t_true)
+    errs = np.asarray(errs)
+    assert errs.size >= 18
+    assert abs(float(errs.mean())) < 0.05  # mean bias well under the fixed-rule bias
