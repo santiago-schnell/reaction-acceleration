@@ -28,13 +28,15 @@ from _style import apply_style
 from matplotlib.ticker import AutoMinorLocator
 
 ROOT = Path(__file__).resolve().parents[2]
-METRICS_CSV = ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
+METRICS_CSV = (
+    ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
+)
 
 apply_style()
 
 COLORS = {
-    "gcv": "#2166AC",      # recommended
-    "fixed": "#B2182B",    # cautionary
+    "gcv": "#2166AC",  # recommended
+    "fixed": "#B2182B",  # cautionary
     "target": "#666666",
 }
 STYLE = {
@@ -64,9 +66,16 @@ def load_metrics(path: Path) -> dict[str, dict[str, np.ndarray]]:
         rows = list(csv.DictReader(handle))
 
     keys = [
-        "noise_percent", "bias_s", "rmse_s", "half_width_s",
-        "coverage_percent", "coverage_low_percent", "coverage_high_percent",
-        "detection_percent", "detection_low_percent", "detection_high_percent",
+        "noise_percent",
+        "bias_s",
+        "rmse_s",
+        "half_width_s",
+        "coverage_percent",
+        "coverage_low_percent",
+        "coverage_high_percent",
+        "detection_percent",
+        "detection_low_percent",
+        "detection_high_percent",
     ]
     out: dict[str, dict[str, np.ndarray]] = {}
     for pipeline in ("gcv", "fixed"):
@@ -82,7 +91,9 @@ def load_metrics(path: Path) -> dict[str, dict[str, np.ndarray]]:
 def style_axis(axis, ylabel: str, label: str, *, add_zero: bool = False) -> None:
     axis.set_xlabel(r"Noise, $\sigma$/range (%)")
     axis.set_ylabel(ylabel)
-    axis.text(-0.25, 1.05, label, transform=axis.transAxes, fontweight="bold", fontsize=10)
+    axis.text(
+        -0.25, 1.05, label, transform=axis.transAxes, fontweight="bold", fontsize=10
+    )
     axis.xaxis.set_minor_locator(AutoMinorLocator())
     axis.yaxis.set_minor_locator(AutoMinorLocator())
     axis.tick_params(which="both", direction="in", top=True, right=True)
@@ -95,8 +106,13 @@ def _plot_series(axis, data, ykey, *, yerr_keys=None):
         if pipeline not in data:
             continue
         d = data[pipeline]
-        kw = dict(STYLE[pipeline], color=COLORS[pipeline], label=LABEL[pipeline],
-                  capsize=2, markersize=5)
+        kw = dict(
+            STYLE[pipeline],
+            color=COLORS[pipeline],
+            label=LABEL[pipeline],
+            capsize=2,
+            markersize=5,
+        )
         if yerr_keys is not None:
             lo, hi = yerr_keys
             yerr = np.vstack((d[ykey] - d[lo], d[hi] - d[ykey]))
@@ -109,7 +125,9 @@ def main() -> None:
     data = load_metrics(ensure_metrics_csv())
 
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.7))
-    fig.subplots_adjust(wspace=0.35, hspace=0.45, left=0.10, right=0.98, top=0.95, bottom=0.12)
+    fig.subplots_adjust(
+        wspace=0.35, hspace=0.45, left=0.10, right=0.98, top=0.95, bottom=0.12
+    )
 
     _plot_series(axes[0, 0], data, "bias_s")
     style_axis(axes[0, 0], "Bias in $t^*$ (s)", "(a)", add_zero=True)
@@ -118,17 +136,28 @@ def main() -> None:
     style_axis(axes[0, 1], "RMSE in $t^*$ (s)", "(b)")
 
     _plot_series(
-        axes[1, 0], data, "coverage_percent",
+        axes[1, 0],
+        data,
+        "coverage_percent",
         yerr_keys=("coverage_low_percent", "coverage_high_percent"),
     )
     style_axis(axes[1, 0], "95% CI coverage (%)", "(c)")
     axes[1, 0].axhline(95, color=COLORS["target"], linewidth=0.8, linestyle="--")
-    axes[1, 0].text(axes[1, 0].get_xlim()[1], 93, "nominal 95%", ha="right",
-                    va="top", fontsize=8, color=COLORS["target"])
+    axes[1, 0].text(
+        axes[1, 0].get_xlim()[1],
+        93,
+        "nominal 95%",
+        ha="right",
+        va="top",
+        fontsize=8,
+        color=COLORS["target"],
+    )
     axes[1, 0].set_ylim(45, 107)
 
     _plot_series(
-        axes[1, 1], data, "detection_percent",
+        axes[1, 1],
+        data,
+        "detection_percent",
         yerr_keys=("detection_low_percent", "detection_high_percent"),
     )
     style_axis(axes[1, 1], "Detection (%)", "(d)")
@@ -136,8 +165,12 @@ def main() -> None:
 
     outdir = ROOT / "outputs" / "figures"
     outdir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(outdir / "Figure5_benchmark.pdf", format="pdf", bbox_inches="tight", dpi=300)
-    plt.savefig(outdir / "Figure5_benchmark.png", format="png", bbox_inches="tight", dpi=300)
+    plt.savefig(
+        outdir / "Figure5_benchmark.pdf", format="pdf", bbox_inches="tight", dpi=300
+    )
+    plt.savefig(
+        outdir / "Figure5_benchmark.png", format="png", bbox_inches="tight", dpi=300
+    )
 
 
 if __name__ == "__main__":
