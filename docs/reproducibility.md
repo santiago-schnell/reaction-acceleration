@@ -40,7 +40,7 @@ Outputs are written to `outputs/figures/`. Figure 4 computes the Z acceleration 
 
 ## Reproduce the Supporting-Information numerical examples
 
-The worked example uses the same canonical autocatalysis configuration as SI §7.3 (n = 100, σ = 0.01 M, s = 2nσ², data seed 42, bootstrap seed 1, B = 500) and the recommended `acceleration_zero_crossing_time` detector, so the example output and the SI §7.3 table report the same point estimate and confidence interval:
+The worked example uses the same canonical autocatalysis configuration as §8.3 (n = 100, σ = 0.01 M, s = 2nσ², data seed 42, bootstrap seed 1, B = 500) and the recommended `acceleration_zero_crossing_time` detector, so the example output and the §8.3 table report the same point estimate and confidence interval:
 
 ```bash
 python examples/autocatalysis_landmark.py
@@ -68,12 +68,12 @@ system, the same smoothing rule `s = 2nσ²`, and the same recommended landmark
 detector `acceleration_zero_crossing_time`.
 
 ```bash
-python scripts/si/smoothing_table.py      # SI Sec. 6.6 (smoothing-parameter selection)
-python scripts/si/bootstrap_table.py      # SI Sec. 7.3 (bootstrap CI)
-python scripts/si/verification_table.py   # SI Sec. 8.3 (verification grid)
+python scripts/si/smoothing_table.py      # SI Sec. 7.6 (smoothing-parameter selection)
+python scripts/si/bootstrap_table.py      # Sec. 8.3 (bootstrap CI)
+python scripts/si/verification_table.py   # SI Sec. 9.3 (verification grid)
 ```
 
-Each script prints the table it backs. `verification_table.py` also writes `data/benchmarks/autocatalysis_operating_characteristics.csv`, including Wilson binomial intervals for the Monte Carlo uncertainty in coverage and detection. `bootstrap_table.py` uses the identical seeds and detector as the Section 9 listing and the worked example, so all three agree.
+Each script prints the table it backs. `verification_table.py` also writes `data/benchmarks/autocatalysis_operating_characteristics.csv`, including Wilson binomial intervals for the Monte Carlo uncertainty in coverage and detection. `bootstrap_table.py` uses the identical seeds and detector as the Section 10 listing and the worked example, so all three agree.
 
 ## Run the tests
 

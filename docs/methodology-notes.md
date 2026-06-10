@@ -22,7 +22,7 @@ $$
 $$
 
 The $\Delta t^{-4}$ dependence means that denser sampling makes the naive
-estimator *worse*, not better. See SI §6.1 for the derivation.
+estimator *worse*, not better. See SI §7.1 for the derivation.
 
 The recommended workflow is therefore:
 
@@ -39,7 +39,33 @@ curves, as it anchors the crossing on the rate maximum), and
 
 ---
 
-## Smoothing splines (recommended)
+### Data-driven penalty selection (recommended): `method="gcv"`
+
+Rather than fixing `s` by a rule of thumb, the package can select the
+smoothing penalty directly from the data by **generalised cross-validation
+(GCV)**, exposed as `estimate_derivatives(..., method="gcv")`. This fits a
+penalized B-spline (P-spline; Eilers & Marx 1996) with a second-difference
+penalty and chooses the penalty $\lambda$ that minimises
+
+$$
+\mathrm{GCV}(\lambda) = \frac{n\,\lVert y - \hat{x}_\lambda\rVert^2}{(n - \mathrm{tr}\,S_\lambda)^2},
+$$
+
+where $S_\lambda$ is the smoother (hat) matrix. Because the basis depends
+only on the time grid, a single Demmler–Reinsch diagonalisation makes both
+GCV selection and bootstrap refits inexpensive. A quartic basis ($k=4$) is
+the default, giving a piecewise-quadratic — rather than piecewise-linear —
+second derivative.
+
+On the canonical autocatalysis benchmark, GCV removes essentially all of
+the fixed rule's landmark bias (point-estimate bias falls from roughly
+$-0.11$ to $-0.15$ s down to within $\pm 0.03$ s across $\sigma/\text{range}
+\in [0.5\%, 5\%]$) and restores 95% bootstrap-CI coverage to its nominal
+level (SI §9.3). It is the recommended choice for quantitative landmark
+work. The fixed-`s` rule below is retained as a transparent, easily audited
+fallback and as the cautionary example in SI §7.6.
+
+## Smoothing splines (fixed penalty): `method="spline"`
 
 For irregularly or regularly sampled data, cubic smoothing splines
 implemented via `scipy.interpolate.UnivariateSpline` minimise
@@ -66,7 +92,7 @@ improves stability. The recommended starting point is
 $$
 s = 2\,n\,\sigma^2,
 $$
-which is the starting point used in SI §6.6 and in the bootstrap example of SI §7.3. A sensitivity sweep
+which is the starting point used in SI §7.6 and in the bootstrap example of §8.3. A sensitivity sweep
 with $s \in [n\sigma^2,\ 3\,n\sigma^2]$ should show the landmark time stable
 to within its bootstrap CI.
 
@@ -125,7 +151,7 @@ emits a warning if more than 20% of bootstrap replicates fail to detect
 the landmark (feature unstable at current data quality). Pass
 `return_diagnostics=True` to inspect the success/failure breakdown.
 
-See SI §7 for the full bootstrap algorithm and SI §7.3 for a worked numerical example on the canonical autocatalytic data set.
+See SI §8 for the full bootstrap algorithm and §8.3 for a worked numerical example on the canonical autocatalytic data set.
 
 ---
 
@@ -145,7 +171,7 @@ Recommended checks before reporting an acceleration-derived landmark:
   zero-crossing time).
 
 SI §8 specifies an extended verification grid across mechanisms, noise
-levels, sampling densities, and sampling patterns. SI §8.3 reports
+levels, sampling densities, and sampling patterns. SI §9.3 reports
 sample bias, RMSE, coverage, and detection-rate numbers that can be
 used as benchmarks.
 
@@ -168,12 +194,12 @@ used as benchmarks.
 
 | Topic | SI section |
 |---|---|
-| Noise-amplification derivation | §6.1 |
-| Spline vs Savitzky–Golay | §6.3 and §6.4 |
-| Smoothing-parameter heuristic | §6.5 |
-| Smoothing-parameter worked example | §6.6 |
-| Residual bootstrap algorithm | §7.1 |
-| Bootstrap worked example | §7.3 |
+| Noise-amplification derivation | §7.1 |
+| Spline vs Savitzky–Golay | §7.3 and §7.4 |
+| Smoothing-parameter heuristic | §7.5 |
+| Smoothing-parameter worked example | §7.6 |
+| Residual bootstrap algorithm | §8.1 |
+| Bootstrap worked example | §8.3 |
 | Verification framework | §8 |
-| Sample verification output (bias/RMSE/coverage) | §8.3 |
+| Sample verification output (bias/RMSE/coverage) | §9.3 |
 | Full Python implementation details | §9 |
