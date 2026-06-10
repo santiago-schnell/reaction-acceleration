@@ -30,7 +30,7 @@ def main() -> None:
     # Pre-draw a fixed noise matrix so every column sees the same realisations.
     noise = rng.standard_normal((N_REALISATIONS, N)) * SIGMA
 
-    print("# SI Sec. 6.6 - smoothing-parameter selection")
+    print("# SI Sec. 7.6 - smoothing-parameter selection")
     print(
         f"# canonical autocatalysis, n={N}, sigma={SIGMA}, "
         f"{N_REALISATIONS} realisations, true t* = {T_STAR_TRUE:.3f} s"

@@ -60,6 +60,16 @@ def landmark_fn(t, yhat, dy, d2y):
 
 
 def estimate_inflection(t, y, s):
-    """Smooth + differentiate + extract the inflection landmark."""
+    """Smooth + differentiate + extract the inflection landmark (fixed-s rule)."""
     yhat, dy, d2y, _ = estimate_derivatives(t, y, method="spline", s=s)
+    return landmark_fn(t, yhat, dy, d2y)
+
+
+def estimate_inflection_gcv(t, y):
+    """Smooth + differentiate + extract the inflection landmark (GCV P-spline).
+
+    The recommended data-driven pipeline: the smoothing penalty is chosen by
+    generalized cross-validation rather than fixed at s = 2 n sigma**2.
+    """
+    yhat, dy, d2y, _ = estimate_derivatives(t, y, method="gcv")
     return landmark_fn(t, yhat, dy, d2y)

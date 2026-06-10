@@ -1,18 +1,25 @@
-"""Regenerate the SI verification table (Section 8.3).
+"""Regenerate the SI verification grid (Section 9.3).
 
-Coverage study for the autocatalysis inflection landmark across relative
-noise levels. For each noise level, draw a fixed number of independent
-realisations, estimate the landmark with the fixed smoothing rule
-s = 2 n sigma**2, and report:
+Operating-characteristic study for the autocatalysis inflection landmark
+across relative noise levels, for two smoothing pipelines:
 
-  * bias      = mean(t*_hat) - t*_true
-  * RMSE      = sqrt(mean((t*_hat - t*_true)**2))
-  * coverage  = fraction of 95 % bootstrap CIs that contain t*_true
-  * detection = fraction of realisations in which a landmark was found
+  * ``fixed`` -- the cautionary fixed rule s = 2 n sigma**2 (method="spline");
+  * ``gcv``   -- the recommended data-driven penalty selected by generalized
+                 cross-validation (method="gcv").
 
-The script also writes the canonical benchmark source data to
-``data/benchmarks/autocatalysis_operating_characteristics.csv``. Figure 5
-reads that CSV, so the table and the figure have a single numerical source.
+For each (pipeline, noise level) it reports:
+
+  * bias       = mean(t*_hat) - t*_true
+  * RMSE       = sqrt(mean((t*_hat - t*_true)**2))
+  * coverage   = fraction of 95 % bootstrap CIs that contain t*_true
+  * detection  = fraction of realisations in which a landmark was found
+  * half_width = median 95 % bootstrap CI half-width
+
+Both pipelines see *identical* noise realisations (each pass re-seeds the RNG
+at ``MASTER_SEED``), so the comparison is paired. The script writes the
+canonical benchmark source data to
+``data/benchmarks/autocatalysis_operating_characteristics.csv``; Figure 5
+reads that CSV, so the table and the figure share one numerical source.
 
 Run from the repository root:
     python scripts/si/verification_table.py
@@ -28,6 +35,7 @@ from _si_common import (
     T_STAR_TRUE,
     clean_signal,
     estimate_inflection,
+    estimate_inflection_gcv,
     grid,
     landmark_fn,
     smoothing_factor,
@@ -45,8 +53,10 @@ MASTER_SEED = 7
 BOOT_SEED = 1
 SIGNAL_RANGE = 1.0
 REL_NOISE = [0.005, 0.010, 0.020, 0.050]
+PIPELINES = ("fixed", "gcv")
 
 CSV_FIELDS = [
+    "pipeline",
     "rel_noise",
     "noise_percent",
     "n",
@@ -57,6 +67,7 @@ CSV_FIELDS = [
     "smoothing_factor",
     "bias_s",
     "rmse_s",
+    "half_width_s",
     "coverage_percent",
     "coverage_low_percent",
     "coverage_high_percent",
@@ -81,78 +92,97 @@ def wilson_interval(
     return float(max(0.0, centre - half_width)), float(min(1.0, centre + half_width))
 
 
-def compute_metrics() -> list[dict[str, float | int]]:
-    """Compute the canonical operating-characteristic grid."""
+def _point_and_ci(pipeline: str, t, y, sigma):
+    """Return (point estimate, CI low, CI high) for one realisation."""
+
+    if pipeline == "fixed":
+        s = smoothing_factor(N, sigma, factor=2.0)
+        point = estimate_inflection(t, y, s)
+        _, lo, hi = residual_bootstrap_landmark_ci(
+            t, y, landmark_fn=landmark_fn, method="spline", s=s,
+            n_boot=N_BOOT, alpha=0.05, seed=BOOT_SEED,
+        )
+        return point, lo, hi, s
+    if pipeline == "gcv":
+        point = estimate_inflection_gcv(t, y)
+        _, lo, hi = residual_bootstrap_landmark_ci(
+            t, y, landmark_fn=landmark_fn, method="gcv",
+            n_boot=N_BOOT, alpha=0.05, seed=BOOT_SEED,
+        )
+        return point, lo, hi, float("nan")
+    raise ValueError(f"Unknown pipeline: {pipeline}")
+
+
+def compute_metrics() -> list[dict[str, float | int | str]]:
+    """Compute the canonical operating-characteristic grid for both pipelines."""
 
     t = grid(N)
     b_clean = clean_signal(t)
-    rng = np.random.default_rng(MASTER_SEED)
-    rows: list[dict[str, float | int]] = []
+    rows: list[dict[str, float | int | str]] = []
 
-    for rel in REL_NOISE:
-        sigma = rel * SIGNAL_RANGE
-        s = smoothing_factor(N, sigma, factor=2.0)
-        ests: list[float] = []
-        covered = 0
-        detected = 0
+    for pipeline in PIPELINES:
+        # Re-seed per pipeline so both see identical noise (paired comparison).
+        rng = np.random.default_rng(MASTER_SEED)
+        for rel in REL_NOISE:
+            sigma = rel * SIGNAL_RANGE
+            ests: list[float] = []
+            half_widths: list[float] = []
+            covered = 0
+            detected = 0
+            s_used = float("nan")
 
-        for _ in range(N_REALISATIONS):
-            y = b_clean + rng.normal(0.0, sigma, N)
-            point = estimate_inflection(t, y, s)
-            if not np.isfinite(point):
-                continue
-            detected += 1
-            ests.append(float(point))
-            _, lo, hi = residual_bootstrap_landmark_ci(
-                t,
-                y,
-                landmark_fn=landmark_fn,
-                method="spline",
-                s=s,
-                n_boot=N_BOOT,
-                alpha=0.05,
-                seed=BOOT_SEED,
+            for _ in range(N_REALISATIONS):
+                y = b_clean + rng.normal(0.0, sigma, N)
+                point, lo, hi, s_used = _point_and_ci(pipeline, t, y, sigma)
+                if not np.isfinite(point):
+                    continue
+                detected += 1
+                ests.append(float(point))
+                if np.isfinite(lo) and np.isfinite(hi):
+                    half_widths.append(0.5 * (hi - lo))
+                    if lo <= T_STAR_TRUE <= hi:
+                        covered += 1
+
+            ests_arr = np.asarray(ests, dtype=float)
+            bias = float(np.mean(ests_arr) - T_STAR_TRUE) if ests_arr.size else float("nan")
+            rmse = (
+                float(np.sqrt(np.mean((ests_arr - T_STAR_TRUE) ** 2)))
+                if ests_arr.size
+                else float("nan")
             )
-            if np.isfinite(lo) and lo <= T_STAR_TRUE <= hi:
-                covered += 1
+            hw = float(np.median(half_widths)) if half_widths else float("nan")
+            cov = 100.0 * covered / detected if detected else float("nan")
+            det = 100.0 * detected / N_REALISATIONS
+            cov_low, cov_high = wilson_interval(covered, detected)
+            det_low, det_high = wilson_interval(detected, N_REALISATIONS)
 
-        ests_arr = np.asarray(ests, dtype=float)
-        bias = float(np.mean(ests_arr) - T_STAR_TRUE) if ests_arr.size else float("nan")
-        rmse = (
-            float(np.sqrt(np.mean((ests_arr - T_STAR_TRUE) ** 2)))
-            if ests_arr.size
-            else float("nan")
-        )
-        cov = 100.0 * covered / detected if detected else float("nan")
-        det = 100.0 * detected / N_REALISATIONS
-        cov_low, cov_high = wilson_interval(covered, detected)
-        det_low, det_high = wilson_interval(detected, N_REALISATIONS)
-
-        rows.append(
-            {
-                "rel_noise": float(rel),
-                "noise_percent": float(100.0 * rel),
-                "n": N,
-                "n_realisations": N_REALISATIONS,
-                "n_boot": N_BOOT,
-                "n_detected": detected,
-                "n_covered": covered,
-                "smoothing_factor": float(s),
-                "bias_s": bias,
-                "rmse_s": rmse,
-                "coverage_percent": float(cov),
-                "coverage_low_percent": float(100.0 * cov_low),
-                "coverage_high_percent": float(100.0 * cov_high),
-                "detection_percent": float(det),
-                "detection_low_percent": float(100.0 * det_low),
-                "detection_high_percent": float(100.0 * det_high),
-            }
-        )
+            rows.append(
+                {
+                    "pipeline": pipeline,
+                    "rel_noise": float(rel),
+                    "noise_percent": float(100.0 * rel),
+                    "n": N,
+                    "n_realisations": N_REALISATIONS,
+                    "n_boot": N_BOOT,
+                    "n_detected": detected,
+                    "n_covered": covered,
+                    "smoothing_factor": float(s_used),
+                    "bias_s": bias,
+                    "rmse_s": rmse,
+                    "half_width_s": hw,
+                    "coverage_percent": float(cov),
+                    "coverage_low_percent": float(100.0 * cov_low),
+                    "coverage_high_percent": float(100.0 * cov_high),
+                    "detection_percent": float(det),
+                    "detection_low_percent": float(100.0 * det_low),
+                    "detection_high_percent": float(100.0 * det_high),
+                }
+            )
 
     return rows
 
 
-def write_metrics_csv(rows: list[dict[str, float | int]], path: Path = OUTPUT_CSV) -> Path:
+def write_metrics_csv(rows, path: Path = OUTPUT_CSV) -> Path:
     """Write operating-characteristic metrics to CSV and return the path."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -163,34 +193,39 @@ def write_metrics_csv(rows: list[dict[str, float | int]], path: Path = OUTPUT_CS
     return path
 
 
-def print_table(rows: list[dict[str, float | int]]) -> None:
-    """Print the SI table in human-readable form."""
+def print_table(rows) -> None:
+    """Print the SI table in human-readable form, grouped by pipeline."""
 
-    print("# SI Sec. 8.3 - verification grid")
+    print("# SI Sec. 9.3 - verification grid (fixed rule vs GCV)")
     print(
         f"# n={N}, {N_REALISATIONS} realisations/level, B={N_BOOT}, "
-        f"s=2*n*sigma^2, true t* = {T_STAR_TRUE:.3f} s"
+        f"true t* = {T_STAR_TRUE:.3f} s"
     )
-    print(
-        f"{'sigma/range':>11} {'Bias (s)':>10} {'RMSE (s)':>9} "
-        f"{'CI coverage':>12} {'Detection':>10}"
-    )
-
-    for row in rows:
+    label = {"fixed": "fixed s=2 n sigma^2 (cautionary)", "gcv": "GCV P-spline (recommended)"}
+    for pipeline in PIPELINES:
+        print(f"\n## pipeline: {label[pipeline]}")
         print(
-            f"{row['noise_percent']:>10.1f}% "
-            f"{row['bias_s']:>+10.3f} "
-            f"{row['rmse_s']:>9.3f} "
-            f"{row['coverage_percent']:>11.0f}% "
-            f"{row['detection_percent']:>9.0f}%"
+            f"{'sigma/range':>11} {'Bias (s)':>10} {'RMSE (s)':>9} "
+            f"{'HalfWid (s)':>11} {'CI coverage':>12} {'Detection':>10}"
         )
+        for row in rows:
+            if row["pipeline"] != pipeline:
+                continue
+            print(
+                f"{row['noise_percent']:>10.1f}% "
+                f"{row['bias_s']:>+10.3f} "
+                f"{row['rmse_s']:>9.3f} "
+                f"{row['half_width_s']:>11.3f} "
+                f"{row['coverage_percent']:>11.0f}% "
+                f"{row['detection_percent']:>9.0f}%"
+            )
 
 
 def main() -> None:
     rows = compute_metrics()
     csv_path = write_metrics_csv(rows)
     print_table(rows)
-    print(f"# wrote {csv_path.relative_to(ROOT)}")
+    print(f"\n# wrote {csv_path.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
