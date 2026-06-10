@@ -28,9 +28,7 @@ from _style import apply_style
 from matplotlib.ticker import AutoMinorLocator
 
 ROOT = Path(__file__).resolve().parents[2]
-METRICS_CSV = (
-    ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
-)
+METRICS_CSV = ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
 
 apply_style()
 
@@ -82,18 +80,14 @@ def load_metrics(path: Path) -> dict[str, dict[str, np.ndarray]]:
         sub = [r for r in rows if r.get("pipeline", "fixed") == pipeline]
         if not sub:
             continue
-        out[pipeline] = {
-            k: np.asarray([float(r[k]) for r in sub], dtype=float) for k in keys
-        }
+        out[pipeline] = {k: np.asarray([float(r[k]) for r in sub], dtype=float) for k in keys}
     return out
 
 
 def style_axis(axis, ylabel: str, label: str, *, add_zero: bool = False) -> None:
     axis.set_xlabel(r"Noise, $\sigma$/range (%)")
     axis.set_ylabel(ylabel)
-    axis.text(
-        -0.25, 1.05, label, transform=axis.transAxes, fontweight="bold", fontsize=10
-    )
+    axis.text(-0.25, 1.05, label, transform=axis.transAxes, fontweight="bold", fontsize=10)
     axis.xaxis.set_minor_locator(AutoMinorLocator())
     axis.yaxis.set_minor_locator(AutoMinorLocator())
     axis.tick_params(which="both", direction="in", top=True, right=True)
@@ -125,9 +119,7 @@ def main() -> None:
     data = load_metrics(ensure_metrics_csv())
 
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.7))
-    fig.subplots_adjust(
-        wspace=0.35, hspace=0.45, left=0.10, right=0.98, top=0.95, bottom=0.12
-    )
+    fig.subplots_adjust(wspace=0.35, hspace=0.45, left=0.10, right=0.98, top=0.95, bottom=0.12)
 
     _plot_series(axes[0, 0], data, "bias_s")
     style_axis(axes[0, 0], "Bias in $t^*$ (s)", "(a)", add_zero=True)
@@ -165,12 +157,8 @@ def main() -> None:
 
     outdir = ROOT / "outputs" / "figures"
     outdir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(
-        outdir / "Figure5_benchmark.pdf", format="pdf", bbox_inches="tight", dpi=300
-    )
-    plt.savefig(
-        outdir / "Figure5_benchmark.png", format="png", bbox_inches="tight", dpi=300
-    )
+    plt.savefig(outdir / "Figure5_benchmark.pdf", format="pdf", bbox_inches="tight", dpi=300)
+    plt.savefig(outdir / "Figure5_benchmark.png", format="png", bbox_inches="tight", dpi=300)
 
 
 if __name__ == "__main__":
