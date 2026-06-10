@@ -44,7 +44,9 @@ from _si_common import (
 from reaction_acceleration import residual_bootstrap_landmark_ci
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_CSV = ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
+OUTPUT_CSV = (
+    ROOT / "data" / "benchmarks" / "autocatalysis_operating_characteristics.csv"
+)
 
 N = 100
 N_REALISATIONS = 50
@@ -88,7 +90,9 @@ def wilson_interval(
     phat = successes / total
     denom = 1.0 + z**2 / total
     centre = (phat + z**2 / (2.0 * total)) / denom
-    half_width = z * np.sqrt((phat * (1.0 - phat) + z**2 / (4.0 * total)) / total) / denom
+    half_width = (
+        z * np.sqrt((phat * (1.0 - phat) + z**2 / (4.0 * total)) / total) / denom
+    )
     return float(max(0.0, centre - half_width)), float(min(1.0, centre + half_width))
 
 
@@ -99,15 +103,26 @@ def _point_and_ci(pipeline: str, t, y, sigma):
         s = smoothing_factor(N, sigma, factor=2.0)
         point = estimate_inflection(t, y, s)
         _, lo, hi = residual_bootstrap_landmark_ci(
-            t, y, landmark_fn=landmark_fn, method="spline", s=s,
-            n_boot=N_BOOT, alpha=0.05, seed=BOOT_SEED,
+            t,
+            y,
+            landmark_fn=landmark_fn,
+            method="spline",
+            s=s,
+            n_boot=N_BOOT,
+            alpha=0.05,
+            seed=BOOT_SEED,
         )
         return point, lo, hi, s
     if pipeline == "gcv":
         point = estimate_inflection_gcv(t, y)
         _, lo, hi = residual_bootstrap_landmark_ci(
-            t, y, landmark_fn=landmark_fn, method="gcv",
-            n_boot=N_BOOT, alpha=0.05, seed=BOOT_SEED,
+            t,
+            y,
+            landmark_fn=landmark_fn,
+            method="gcv",
+            n_boot=N_BOOT,
+            alpha=0.05,
+            seed=BOOT_SEED,
         )
         return point, lo, hi, float("nan")
     raise ValueError(f"Unknown pipeline: {pipeline}")
@@ -144,7 +159,11 @@ def compute_metrics() -> list[dict[str, float | int | str]]:
                         covered += 1
 
             ests_arr = np.asarray(ests, dtype=float)
-            bias = float(np.mean(ests_arr) - T_STAR_TRUE) if ests_arr.size else float("nan")
+            bias = (
+                float(np.mean(ests_arr) - T_STAR_TRUE)
+                if ests_arr.size
+                else float("nan")
+            )
             rmse = (
                 float(np.sqrt(np.mean((ests_arr - T_STAR_TRUE) ** 2)))
                 if ests_arr.size
@@ -201,7 +220,10 @@ def print_table(rows) -> None:
         f"# n={N}, {N_REALISATIONS} realisations/level, B={N_BOOT}, "
         f"true t* = {T_STAR_TRUE:.3f} s"
     )
-    label = {"fixed": "fixed s=2 n sigma^2 (cautionary)", "gcv": "GCV P-spline (recommended)"}
+    label = {
+        "fixed": "fixed s=2 n sigma^2 (cautionary)",
+        "gcv": "GCV P-spline (recommended)",
+    }
     for pipeline in PIPELINES:
         print(f"\n## pipeline: {label[pipeline]}")
         print(
