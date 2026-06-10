@@ -76,9 +76,7 @@ def main() -> None:
     # a slightly larger factor (s = 2 N sigma^2).
     s = 2.0 * len(t) * (sigma**2)
 
-    B_hat, dB_hat, d2B_hat, _model = estimate_derivatives(
-        t, B_obs, method="spline", s=s
-    )
+    B_hat, dB_hat, d2B_hat, _model = estimate_derivatives(t, B_obs, method="spline", s=s)
 
     t_star = landmark_inflection(t, B_hat, dB_hat, d2B_hat)
 
@@ -114,8 +112,7 @@ def main() -> None:
     print(f"  Bootstrap base estimate   : {est:.4f} s")
     print(f"  95% CI (percentile)       : [{lo:.4f}, {hi:.4f}] s")
     print(
-        f"  CI contains truth         : "
-        f"{'yes' if lo <= t_true <= hi else 'no (single-seed)'}"
+        f"  CI contains truth         : " f"{'yes' if lo <= t_true <= hi else 'no (single-seed)'}"
     )
 
     # Recommended pipeline: GCV-selected penalty (de-biased point estimate).
