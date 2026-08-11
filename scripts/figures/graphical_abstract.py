@@ -1,126 +1,212 @@
 """graphical_abstract.py
 
 Graphical abstract for the ChemSystemsChem research article:
-"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics".
+"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics".[cite: 1]
 
-The figure emphasizes that the sign pattern of the acceleration
-(d^2[B]/dt^2 for a monitored progress variable B) distinguishes:
+The figure emphasizes that the sign pattern of the acceleration 
+(d^2[B]/dt^2 for a monitored progress variable B) distinguishes:[cite: 1]
 
-- single-step relaxation (no sign change; typically negative for product
-  formation when the rate decreases),
-- intermediacy in consecutive reactions (negative-to-positive),
-- feedback in autocatalysis (positive-to-negative).
+- single-step relaxation (no sign change; typically negative for product 
+  formation when the rate decreases),[cite: 1]
+- intermediacy in consecutive reactions (negative-to-positive),[cite: 1]
+- feedback in autocatalysis (positive-to-negative).[cite: 1]
 
-Units are omitted for compactness; the goal is conceptual rather than
-quantitative.
+Units are omitted for compactness; the goal is conceptual rather than 
+quantitative.[cite: 1]
 
-Dependencies: numpy, matplotlib
+Scientific clarification
+------------------------
+The monitored quantity is explicitly identified as `x(t) = [B](t)` in all
+three panels. Thus `B` is the product in the first-order and autocatalytic
+panels and the intermediate in the consecutive-reaction panel. This removes
+the possible implication that the acceleration of every progress variable in
+a first-order relaxation is necessarily negative.
+
+The figure is deterministic: no random numbers are used.
+
+Dependencies: NumPy, Matplotlib.[cite: 1]
 """
+
+from __future__ import annotations
 
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from _style import apply_style
+
 
 # ------------------------------------------------------------------------------
-# 1. Style & Configuration
+# 1. Style & Configuration[cite: 1]
 # ------------------------------------------------------------------------------
+
+try:
+    # Repository execution: scripts/figures/_style.py is available.
+    from _style import apply_style
+except ImportError:
+    # Stand-alone fallback so that this single file remains runnable.
+    def apply_style() -> None:
+        """Apply the manuscript's plotting style."""
+        plt.rcParams.update(
+            {
+                "font.family": "sans-serif",
+                "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+                "font.size": 9,
+                "axes.labelsize": 10,
+                "axes.titlesize": 11,
+                "xtick.labelsize": 8,
+                "ytick.labelsize": 8,
+                "legend.fontsize": 9,
+                "figure.dpi": 300,
+                "lines.linewidth": 1.5,
+            }
+        )
+
 apply_style()
 
-colors = {
-    "line": "#444444",  # Dark Gray
-    "pos": "#4DAF4A",  # Green
-    "neg": "#E66101",  # Orange
-    "zero_dot": "#D00000",  # Red
+COLORS = {
+    "line": "#444444",      # dark gray[cite: 1]
+    "pos": "#4DAF4A",       # positive acceleration: green[cite: 1]
+    "neg": "#E66101",       # negative acceleration: orange[cite: 1]
+    "zero_dot": "#D00000",  # zero crossing: red[cite: 1]
 }
 
+
 # ------------------------------------------------------------------------------
-# 2. Analytical Acceleration Functions
+# 2. Analytical Acceleration Functions[cite: 1]
 # ------------------------------------------------------------------------------
 
-
-def acc_first_order(t, k=1.0):
+def acc_first_order(t: np.ndarray, k: float = 1.0) -> np.ndarray:
+    """Product acceleration for A -> B with x(t) = [B](t)."""
     return -(k**2) * np.exp(-k * t)
 
 
-def acc_consecutive(t, k1=1.0, k2=0.5):
+def acc_consecutive(
+    t: np.ndarray,
+    k1: float = 1.0,
+    k2: float = 0.5,
+) -> np.ndarray:
+    """Intermediate acceleration for A -> B -> C with x(t) = [B](t)."""
+    if np.isclose(k1, k2):
+        # Equal-rate limit: [B] = A0*k*t*exp(-k*t), with A0 normalized to 1.
+        k = 0.5 * (k1 + k2)
+        return (k**2) * np.exp(-k * t) * (k * t - 2.0)
+
     term1 = (k1**2) * np.exp(-k1 * t)
     term2 = (k2**2) * np.exp(-k2 * t)
     prefactor = k1 / (k2 - k1)
     return prefactor * (term1 - term2)
 
 
-def acc_autocatalytic(t, k=1.5, A_tot=1.0, B0=0.02):
-    denom = 1.0 + ((A_tot / B0) - 1.0) * np.exp(-k * A_tot * t)
-    B = A_tot / denom
-    return (k**2) * B * (A_tot - B) * (A_tot - 2.0 * B)
+def acc_autocatalytic(
+    t: np.ndarray,
+    k: float = 1.5,
+    a_tot: float = 1.0,
+    b0: float = 0.02,
+) -> np.ndarray:
+    """Product acceleration for A + B -> 2B with x(t) = [B](t)."""
+    if not (0.0 < b0 < a_tot):
+        raise ValueError("b0 must satisfy 0 < b0 < a_tot.")
+
+    denominator = 1.0 + ((a_tot / b0) - 1.0) * np.exp(-k * a_tot * t)
+    b = a_tot / denominator
+    return (k**2) * b * (a_tot - b) * (a_tot - 2.0 * b)
+
+
+def _normalize(values: np.ndarray) -> np.ndarray:
+    """Normalize a curve to unit maximum absolute magnitude."""
+    scale = float(np.max(np.abs(values)))
+    if not np.isfinite(scale) or scale <= 0.0:
+        raise ValueError("Acceleration curve has no finite, nonzero scale.")
+    return values / scale
+
+
+def _zero_crossing_times(t: np.ndarray, y: np.ndarray) -> list[float]:
+    """Return linearly interpolated zero-crossing times."""
+    indices = np.flatnonzero(np.diff(np.signbit(y)))
+    crossings: list[float] = []
+    for index in indices:
+        t0, t1 = float(t[index]), float(t[index + 1])
+        y0, y1 = float(y[index]), float(y[index + 1])
+        crossings.append(t0 - y0 * (t1 - t0) / (y1 - y0))
+    return crossings
 
 
 # ------------------------------------------------------------------------------
-# 3. Plotting with Custom Positioning
+# 3. Plotting with Custom Positioning[cite: 1]
 # ------------------------------------------------------------------------------
 
-
-def plot_landmark(ax, t, acc_data, title, reaction, landmark_text, text_pos):
+def plot_landmark(
+    ax: plt.Axes,
+    t: np.ndarray,
+    acceleration: np.ndarray,
+    title: str,
+    reaction: str,
+    landmark_text: str,
+    text_position: tuple[float, float],
+) -> None:
     """
-    Draws a single panel with the acceleration curve, shading, and landmark.
-    text_pos: tuple (x, y) in axes coordinates for the landmark label.
+    Draws a single panel with the acceleration curve, shading, and landmark.[cite: 1]
+    text_position: tuple (x, y) in axes coordinates for the landmark label.[cite: 1]
     """
+    
+    # Draw curve[cite: 1]
+    ax.plot(t, acceleration, color=COLORS["line"], zorder=5)
+    
+    # Zero line[cite: 1]
+    ax.axhline(0.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
 
-    # Draw curve
-    ax.plot(t, acc_data, color=colors["line"], zorder=5)
-
-    # Zero line
-    ax.axhline(0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
-
-    # Shading
+    # Shading[cite: 1]
     ax.fill_between(
-        t, 0, acc_data, where=(acc_data > 0), color=colors["pos"], alpha=0.25, interpolate=True
+        t,
+        0.0,
+        acceleration,
+        where=acceleration > 0.0,
+        color=COLORS["pos"],
+        alpha=0.25,
+        interpolate=True,
     )
     ax.fill_between(
-        t, 0, acc_data, where=(acc_data < 0), color=colors["neg"], alpha=0.25, interpolate=True
+        t,
+        0.0,
+        acceleration,
+        where=acceleration < 0.0,
+        color=COLORS["neg"],
+        alpha=0.25,
+        interpolate=True,
     )
 
-    # Landmark Dot (Zero Crossing)
-    sign_change = np.where(np.diff(np.sign(acc_data)))[0]
-    if len(sign_change) > 0:
-        for idx in sign_change:
-            t0, t1 = t[idx], t[idx + 1]
-            y0, y1 = acc_data[idx], acc_data[idx + 1]
-            t_cross = t0 - y0 * (t1 - t0) / (y1 - y0)
-            ax.scatter(
-                [t_cross],
-                [0],
-                color=colors["zero_dot"],
-                s=50,
-                edgecolor="white",
-                linewidth=1.5,
-                zorder=10,
-            )
+    # Landmark Dot (Zero Crossing)[cite: 1]
+    for crossing in _zero_crossing_times(t, acceleration):
+        ax.scatter(
+            [crossing],
+            [0.0],
+            color=COLORS["zero_dot"],
+            s=50,
+            edgecolor="white",
+            linewidth=1.5,
+            zorder=10,
+        )
 
-    # Annotations
+    # Annotations[cite: 1]
     ax.set_title(f"{title}\n{reaction}", fontsize=11, fontweight="bold", pad=10)
 
-    # Text Label with Custom Position
-    # Using alignment 'right' or 'left' based on x-position could be dynamic,
-    # but fixed 'right' alignment with careful coordinates works well.
-    ha = "right" if text_pos[0] > 0.5 else "left"
-    va = "top" if text_pos[1] > 0.5 else "bottom"
-
+    # Text Label with Custom Position[cite: 1]
+    horizontal_alignment = "right" if text_position[0] > 0.5 else "left"
+    vertical_alignment = "top" if text_position[1] > 0.5 else "bottom"
+    
     ax.text(
-        text_pos[0],
-        text_pos[1],
+        text_position[0],
+        text_position[1],
         landmark_text,
         transform=ax.transAxes,
-        ha=ha,
-        va=va,
+        ha=horizontal_alignment,
+        va=vertical_alignment,
         fontsize=9,
         fontstyle="italic",
-        bbox=dict(facecolor="white", alpha=0.8, edgecolor="none", pad=2),
+        bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 2},
     )
 
-    # Clean axes
+    # Clean axes[cite: 1]
     ax.set_yticks([])
     ax.set_xlabel("Time", fontsize=10)
     ax.spines["top"].set_visible(False)
@@ -129,64 +215,93 @@ def plot_landmark(ax, t, acc_data, title, reaction, landmark_text, text_pos):
     ax.spines["bottom"].set_linewidth(0.8)
 
 
-def main():
-    t = np.linspace(0, 6, 500)
+def _output_directory(script_path: Path) -> Path:
+    """Choose the repository output directory when the expected tree exists."""
+    parents = script_path.resolve().parents
+    if len(parents) >= 3 and script_path.parent.name == "figures" and script_path.parent.parent.name == "scripts":
+        return parents[2] / "outputs" / "figures"
+    return script_path.resolve().parent / "outputs" / "figures"
 
-    # Normalized Data
-    a1 = acc_first_order(t)
-    a1 /= np.max(np.abs(a1))
 
-    a2 = acc_consecutive(t)
-    a2 /= np.max(np.abs(a2))
+def main() -> tuple[Path, Path]:
+    """Generate vector PDF and 300-dpi PNG outputs."""
+    t = np.linspace(0.0, 6.0, 500)
 
-    a3 = acc_autocatalytic(t)
-    a3 /= np.max(np.abs(a3))
+    # Normalized Data[cite: 1]
+    first_order = _normalize(acc_first_order(t))
+    consecutive = _normalize(acc_consecutive(t))
+    autocatalytic = _normalize(acc_autocatalytic(t))
 
-    fig, axes = plt.subplots(1, 3, figsize=(9, 3.0), constrained_layout=True)
+    # Sanity checks for the intended taxonomy.
+    assert np.all(first_order < 0.0), "First-order product acceleration must remain negative."
+    consecutive_crossings = _zero_crossing_times(t, consecutive)
+    autocatalytic_crossings = _zero_crossing_times(t, autocatalytic)
+    assert len(consecutive_crossings) == 1, "Consecutive intermediate should have one zero crossing."
+    assert len(autocatalytic_crossings) == 1, "Autocatalytic product should have one zero crossing."
+    assert consecutive[0] < 0.0 < consecutive[-1], "Expected a negative-to-positive transition."
+    assert autocatalytic[0] > 0.0 > autocatalytic[-1], "Expected a positive-to-negative transition."
 
-    # Panel 1: First Order
-    # Curve is always negative (bottom). Place text at Top-Right.
+    fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.25), constrained_layout=True)
+
+    # Panel 1: First Order[cite: 1]
+    # Curve is always negative (bottom). Place text at Top-Right.[cite: 1]
     plot_landmark(
         axes[0],
         t,
-        a1,
+        first_order,
         title="Relaxation",
         reaction=r"($A \rightarrow B$)",
         landmark_text="Always Negative",
-        text_pos=(0.95, 0.90),
-    )  # Top Right
+        text_position=(0.95, 0.90),
+    ) 
 
-    # Panel 2: Consecutive
-    # Curve ends positive (top). Place text at Bottom-Right.
+    # Panel 2: Consecutive[cite: 1]
+    # Curve ends positive (top). Place text at Bottom-Right.[cite: 1]
     plot_landmark(
         axes[1],
         t,
-        a2,
+        consecutive,
         title="Intermediate",
         reaction=r"($A \rightarrow B \rightarrow C$)",
         landmark_text=r"Sign Change: $(-)\rightarrow(+)$",
-        text_pos=(0.95, 0.05),
-    )  # Bottom Right
+        text_position=(0.95, 0.05),
+    )
 
-    # Panel 3: Autocatalysis
-    # Curve ends negative (bottom). Place text at Top-Right.
+    # Panel 3: Autocatalysis[cite: 1]
+    # Curve ends negative (bottom). Place text at Top-Right.[cite: 1]
     plot_landmark(
         axes[2],
         t,
-        a3,
+        autocatalytic,
         title="Autocatalysis",
         reaction=r"($A + B \rightarrow 2B$)",
         landmark_text=r"Sign Change: $(+)\rightarrow(-)$",
-        text_pos=(0.95, 0.90),
-    )  # Top Right (Corrected)
+        text_position=(0.95, 0.90),
+    )
 
-    fig.supylabel(r"Progress-variable acceleration ($\ddot{x}$)", fontsize=12, x=-0.01)
+    fig.supylabel(
+        r"Progress-variable acceleration ($\ddot{x}$)",
+        fontsize=12,
+        x=-0.045,
+    )
+    fig.suptitle(
+        r"Monitored quantity in every panel: $x(t)=[B](t)$",
+        fontsize=10.5,
+        fontweight="semibold",
+    )
 
-    outdir = Path(__file__).resolve().parents[2] / "outputs" / "figures"
-    outdir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(outdir / "Graphical_Abstract.pdf", format="pdf", bbox_inches="tight")
-    plt.savefig(outdir / "Graphical_Abstract.png", format="png", bbox_inches="tight", dpi=300)
-    print("Graphical Abstract saved successfully.")
+    output_dir = _output_directory(Path(__file__))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = output_dir / "Graphical_Abstract.pdf"
+    png_path = output_dir / "Graphical_Abstract.png"
+
+    fig.savefig(pdf_path, format="pdf", bbox_inches="tight")
+    fig.savefig(png_path, format="png", bbox_inches="tight", dpi=300)
+    plt.close(fig)
+
+    print(f"Saved: {pdf_path}")
+    print(f"Saved: {png_path}")
+    return pdf_path, png_path
 
 
 if __name__ == "__main__":
