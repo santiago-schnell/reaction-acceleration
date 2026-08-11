@@ -3,8 +3,8 @@
 Single canonical noise realization: fit, extract the inflection landmark,
 and compute a residual-bootstrap 95 % confidence interval. The fixed-rule
 result is the cautionary case (its point estimate carries the smoothing bias
-of Section 7.6); the GCV result is the recommended pipeline, whose point
-estimate is de-biased. The data seed and bootstrap seed are fixed so the
+of Section 7.6); the GCV result is the recommended pipeline, whose point estimate has substantially
+lower bias in the benchmark. The data seed and bootstrap seed are fixed so the
 fixed-rule table is reproducible and identical to the runnable Section 10
 listing (same seeds, same detector).
 
@@ -69,7 +69,7 @@ def main() -> None:
     )
     print(f"{'CI contains truth':32s} {'yes' if lo <= T_STAR_TRUE <= hi else 'no'}")
 
-    # Recommended pipeline: GCV-selected penalty (de-biased point estimate).
+    # Recommended pipeline: GCV-selected penalty (lower-bias point estimate).
     point_gcv = estimate_inflection_gcv(t, b_obs)
     _eg, lo_g, hi_g, diag_g = residual_bootstrap_landmark_ci(
         t,
