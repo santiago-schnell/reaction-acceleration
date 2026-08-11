@@ -28,10 +28,16 @@ Expected terminal output:
 Autocatalysis landmark: acceleration zero-crossing near v_max
 ====================================================================
   True inflection (theory)  : 2.5945 s
+  --- Cautionary: fixed rule s = 2 N sigma^2 ---
   Smoothing factor (s)      : 2.0000e-02
   Base-fit estimate (t*)    : 2.4324 s
   Bootstrap base estimate   : 2.4324 s
-  95% CI (percentile)       : [2.2302, 2.6537] s
+  95% CI (percentile)       : [2.2302, 2.6145] s
+  CI contains truth         : yes
+  --- Recommended: GCV P-spline (data-driven penalty) ---
+  GCV-selected lambda       : 6.5513e+00
+  Base-fit estimate (t*)    : 2.5677 s
+  95% CI (percentile)       : [2.4533, 2.6816] s
   CI contains truth         : yes
 ====================================================================
 ```
@@ -47,9 +53,10 @@ each step is easy to replace:
 
 1. **Replace the data-generation step** (`sol = odeint(...)`) with code
    that loads your own `t` and `y` arrays.
-2. **Estimate your noise level** `sigma` from replicate measurements or
-   from the high-frequency residuals of an initial fit, then compute
-   `s = 2 * len(t) * sigma**2`.
+2. **Use the recommended GCV estimator** (`method="gcv"`) when the aim is
+   quantitative landmark recovery. The fixed rule
+   `s = 2 * len(t) * sigma**2` is retained as a transparent sensitivity and
+   cautionary comparison.
 3. **Choose a landmark function** appropriate to your system. The
    supplied `landmark_inflection` wraps `acceleration_zero_crossing_time`
    and is tailored to autocatalytic sigmoids; for the intermediate of a

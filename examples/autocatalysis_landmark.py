@@ -115,7 +115,7 @@ def main() -> None:
         f"  CI contains truth         : " f"{'yes' if lo <= t_true <= hi else 'no (single-seed)'}"
     )
 
-    # Recommended pipeline: GCV-selected penalty (de-biased point estimate).
+    # Recommended pipeline: GCV-selected penalty (lower-bias point estimate).
     _Bg, dBg, d2Bg, model_gcv = estimate_derivatives(t, B_obs, method="gcv")
     t_star_gcv = landmark_inflection(t, _Bg, dBg, d2Bg)
     _est_g, lo_g, hi_g = residual_bootstrap_landmark_ci(
