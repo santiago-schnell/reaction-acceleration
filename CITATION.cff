@@ -3,8 +3,8 @@ message: >-
   If you use this software, please cite the accompanying research article
   and/or this repository.
 title: "reaction-acceleration"
-version: 0.5.0
-date-released: 2026-06-09
+version: 0.5.1
+date-released: 2026-08-10
 license: GPL-3.0-only
 repository-code: "https://github.com/santiago-schnell/reaction-acceleration"
 authors:
@@ -20,4 +20,4 @@ preferred-citation:
   title: "Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics"
   journal: "ChemSystemsChem"
   year: 2026
-  status: "submitted"
+  status: "in-press"

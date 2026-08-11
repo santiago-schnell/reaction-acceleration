@@ -2,7 +2,7 @@
 
 Companion code for the research article
 **"Reaction Acceleration: Reviving the Second Derivative in Chemical
-Kinetics"** (Schnell, *ChemSystemsChem*, submitted 2026).
+Kinetics"** (Schnell, *ChemSystemsChem*, in press, 2026).
 
 This repository lets you take a noisy concentration-vs-time curve from a
 chemical experiment and recover the **acceleration** of the reaction —
@@ -101,7 +101,7 @@ If you only want the core library without plotting, use
 The last command prints a few dozen lines ending with something like:
 
 ```
-Successfully installed reaction-acceleration-0.5.0 ...
+Successfully installed reaction-acceleration-0.5.1 ...
 ```
 
 ---
@@ -132,10 +132,16 @@ python examples/autocatalysis_landmark.py
 Autocatalysis landmark: acceleration zero-crossing near v_max
 ====================================================================
   True inflection (theory)  : 2.5945 s
+  --- Cautionary: fixed rule s = 2 N sigma^2 ---
   Smoothing factor (s)      : 2.0000e-02
   Base-fit estimate (t*)    : 2.4324 s
   Bootstrap base estimate   : 2.4324 s
-  95% CI (percentile)       : [2.2302, 2.6537] s
+  95% CI (percentile)       : [2.2302, 2.6145] s
+  CI contains truth         : yes
+  --- Recommended: GCV P-spline (data-driven penalty) ---
+  GCV-selected lambda       : 6.5513e+00
+  Base-fit estimate (t*)    : 2.5677 s
+  95% CI (percentile)       : [2.4533, 2.6816] s
   CI contains truth         : yes
 ====================================================================
 
@@ -180,8 +186,8 @@ once. The second runs every test.
 ### Expected output
 
 ```
-.....................                                                    [100%]
-26 passed in 4.32s
+...............................                                          [100%]
+31 passed
 ```
 
 If any test fails, it is likely because your NumPy or SciPy version
@@ -213,8 +219,8 @@ y = ...                           # concentration, 1-D array of length 200
 
 # 1) Smooth and differentiate.
 #    Recommended: a data-driven penalty selected by generalised
-#    cross-validation, which avoids the systematic landmark bias of a
-#    fixed smoothing factor (see docs/methodology-notes.md).
+#    cross-validation, which substantially reduced the systematic landmark
+#    bias of a fixed smoothing factor in the SI benchmark (see docs/methodology-notes.md).
 yhat, dy, d2y, _model = estimate_derivatives(t, y, method="gcv")
 
 #    Alternative (cautionary): the fixed rule s = 2 n sigma^2, where sigma
