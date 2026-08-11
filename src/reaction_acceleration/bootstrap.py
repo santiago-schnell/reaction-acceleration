@@ -19,7 +19,7 @@ def residual_bootstrap_landmark_ci(
     landmark_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], float],
     method: Method = "spline",
     s: float | None = None,
-    k: int = 3,
+    k: int | None = None,
     n_boot: int = 500,
     alpha: float = 0.05,
     seed: int = 0,
@@ -45,7 +45,10 @@ def residual_bootstrap_landmark_ci(
         Smoothing method forwarded to :func:`estimate_derivatives`.
     s, k
         Smoothing and degree parameters forwarded to
-        :func:`estimate_derivatives`.
+        :func:`estimate_derivatives`. If ``k`` is omitted, the estimator's
+        method-specific default is used: cubic for ``method="spline"`` and
+        quartic for ``method="gcv"``. The same degree is therefore used for
+        the base fit and every bootstrap refit.
     n_boot
         Number of bootstrap replicates.
     alpha

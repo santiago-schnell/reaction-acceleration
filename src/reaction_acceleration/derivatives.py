@@ -1,12 +1,17 @@
 """Derivative estimation for progress-curve analysis.
 
-This module implements two approaches:
+This module implements three approaches:
 
-1) **Smoothing spline** (recommended): fits `scipy.interpolate.UnivariateSpline`
-   and differentiates analytically. Suitable for irregular sampling.
+1) **GCV-selected penalized B-spline** (recommended for quantitative
+   landmarks): selects the smoothing penalty from the data and differentiates
+   analytically. Suitable for irregular sampling.
 
-2) **Savitzky-Golay**: local-polynomial filtering (`scipy.signal.savgol_filter`).
-   Requires approximately uniform sampling.
+2) **Fixed-penalty smoothing spline**: fits
+   `scipy.interpolate.UnivariateSpline` and differentiates analytically.
+   Suitable for irregular sampling.
+
+3) **Savitzky-Golay**: local-polynomial filtering
+   (`scipy.signal.savgol_filter`). Requires approximately uniform sampling.
 
 Notes
 -----
@@ -63,7 +68,7 @@ def _pspline_gcv(
     difference penalty, selecting the smoothing penalty ``lambda`` by
     generalized cross-validation (GCV). Unlike the fixed ``s = c n sigma**2``
     rule used with ``method="spline"``, the penalty is chosen from the data,
-    which removes the systematic landmark bias documented in the SI.
+    which substantially reduced the fixed-rule landmark bias in the SI benchmark.
 
     The basis depends only on the (sorted) time grid, so a single
     Demmler-Reinsch generalized-eigendecomposition diagonalizes the problem
@@ -163,8 +168,8 @@ def estimate_derivatives(
     method:
         "spline" (default; fixed-penalty cubic smoothing spline, requires
         ``s``), "gcv" (penalized B-spline with a GCV-selected penalty;
-        recommended for quantitative landmark work because it removes the
-        smoothing bias of the fixed-``s`` rule), or "savgol".
+        recommended for quantitative landmark work because it substantially
+        reduced the fixed-``s`` smoothing bias in the SI benchmark), or "savgol".
     s:
         Smoothing factor for ``method="spline"``. Heuristic: `s ~= N * sigma^2`
         (``s ~= 1.5-2 N sigma^2`` for second-derivative stability). Ignored by
