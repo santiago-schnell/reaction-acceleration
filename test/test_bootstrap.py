@@ -187,6 +187,32 @@ def test_unstable_landmark_warns_and_returns_nan_ci(caplog):
     assert any("bootstrap replicates" in r.message for r in caplog.records)
 
 
+def test_gcv_bootstrap_default_matches_explicit_quartic():
+    """The bootstrap must inherit the GCV estimator's quartic default."""
+    rng = np.random.default_rng(11)
+    t = np.linspace(0.0, 6.0, 100)
+    y = _logistic_B(t) + rng.normal(0.0, 0.01, size=t.shape)
+
+    common = dict(
+        landmark_fn=_landmark_first_pos_to_neg_zero,
+        method="gcv",
+        n_boot=20,
+        alpha=0.05,
+        seed=17,
+    )
+
+    implicit = residual_bootstrap_landmark_ci(t, y, **common)
+    explicit = residual_bootstrap_landmark_ci(t, y, k=4, **common)
+
+    assert np.allclose(
+        implicit,
+        explicit,
+        rtol=0.0,
+        atol=0.0,
+        equal_nan=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Input validation
 # ---------------------------------------------------------------------------
