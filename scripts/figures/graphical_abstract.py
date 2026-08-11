@@ -1,28 +1,26 @@
-"""graphical_abstract.py
+"""Generate the revised graphical abstract for the ChemSystemsChem article.
 
-Graphical abstract for the ChemSystemsChem research article:
-"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics".
-
-The figure emphasizes that the sign pattern of the acceleration
-(d^2[B]/dt^2 for a monitored progress variable B) distinguishes:
-
-- single-step relaxation (no sign change; typically negative for product
-  formation when the rate decreases),
-- intermediacy in consecutive reactions (negative-to-positive),
-- feedback in autocatalysis (positive-to-negative).
-
-Units are omitted for compactness; the goal is conceptual rather than
-quantitative.
+Article
+-------
+"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics"
 
 Scientific clarification
 ------------------------
-The monitored quantity is explicitly identified as `x(t) = [B](t)` in all
-three panels. Thus `B` is the product in the first-order and autocatalytic
+The monitored quantity is explicitly identified as ``x(t) = [B](t)`` in all
+three panels. Thus ``B`` is the product in the first-order and autocatalytic
 panels and the intermediate in the consecutive-reaction panel. This removes
 the possible implication that the acceleration of every progress variable in
 a first-order relaxation is necessarily negative.
 
 The figure is deterministic: no random numbers are used.
+
+Run from the repository root (or from this directory):
+
+    python graphical_abstract.py
+
+When the script is located at ``scripts/figures/graphical_abstract.py`` in the
+repository, outputs are written to ``outputs/figures``. Otherwise, they are
+written to an ``outputs/figures`` directory beside the script's parent.
 
 Dependencies: NumPy, Matplotlib.
 """
@@ -33,11 +31,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-
-# ------------------------------------------------------------------------------
-# 1. Style & Configuration
-# ------------------------------------------------------------------------------
 
 try:
     # Repository execution: scripts/figures/_style.py is available.
@@ -61,6 +54,7 @@ except ImportError:
             }
         )
 
+
 apply_style()
 
 COLORS = {
@@ -70,10 +64,6 @@ COLORS = {
     "zero_dot": "#D00000",  # zero crossing: red
 }
 
-
-# ------------------------------------------------------------------------------
-# 2. Analytical Acceleration Functions
-# ------------------------------------------------------------------------------
 
 def acc_first_order(t: np.ndarray, k: float = 1.0) -> np.ndarray:
     """Product acceleration for A -> B with x(t) = [B](t)."""
@@ -131,10 +121,6 @@ def _zero_crossing_times(t: np.ndarray, y: np.ndarray) -> list[float]:
     return crossings
 
 
-# ------------------------------------------------------------------------------
-# 3. Plotting with Custom Positioning
-# ------------------------------------------------------------------------------
-
 def plot_landmark(
     ax: plt.Axes,
     t: np.ndarray,
@@ -144,18 +130,10 @@ def plot_landmark(
     landmark_text: str,
     text_position: tuple[float, float],
 ) -> None:
-    """
-    Draws a single panel with the acceleration curve, shading, and landmark.
-    text_position: tuple (x, y) in axes coordinates for the landmark label.
-    """
-
-    # Draw curve
+    """Draw one acceleration-sign panel."""
     ax.plot(t, acceleration, color=COLORS["line"], zorder=5)
-
-    # Zero line
     ax.axhline(0.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
 
-    # Shading
     ax.fill_between(
         t,
         0.0,
@@ -175,7 +153,6 @@ def plot_landmark(
         interpolate=True,
     )
 
-    # Landmark Dot (Zero Crossing)
     for crossing in _zero_crossing_times(t, acceleration):
         ax.scatter(
             [crossing],
@@ -187,13 +164,10 @@ def plot_landmark(
             zorder=10,
         )
 
-    # Annotations
     ax.set_title(f"{title}\n{reaction}", fontsize=11, fontweight="bold", pad=10)
 
-    # Text Label with Custom Position
     horizontal_alignment = "right" if text_position[0] > 0.5 else "left"
     vertical_alignment = "top" if text_position[1] > 0.5 else "bottom"
-
     ax.text(
         text_position[0],
         text_position[1],
@@ -206,7 +180,6 @@ def plot_landmark(
         bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 2},
     )
 
-    # Clean axes
     ax.set_yticks([])
     ax.set_xlabel("Time", fontsize=10)
     ax.spines["top"].set_visible(False)
@@ -227,7 +200,6 @@ def main() -> tuple[Path, Path]:
     """Generate vector PDF and 300-dpi PNG outputs."""
     t = np.linspace(0.0, 6.0, 500)
 
-    # Normalized Data
     first_order = _normalize(acc_first_order(t))
     consecutive = _normalize(acc_consecutive(t))
     autocatalytic = _normalize(acc_autocatalytic(t))
@@ -243,47 +215,37 @@ def main() -> tuple[Path, Path]:
 
     fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.25), constrained_layout=True)
 
-    # Panel 1: First Order
-    # Curve is always negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[0],
         t,
         first_order,
-        title="Relaxation",
+        title="Product relaxation",
         reaction=r"($A \rightarrow B$)",
-        landmark_text="Always Negative",
+        landmark_text="Always negative",
         text_position=(0.95, 0.90),
     )
 
-    # Panel 2: Consecutive
-    # Curve ends positive (top). Place text at Bottom-Right.
     plot_landmark(
         axes[1],
         t,
         consecutive,
-        title="Intermediate",
+        title="Consecutive intermediate",
         reaction=r"($A \rightarrow B \rightarrow C$)",
-        landmark_text=r"Sign Change: $(-)\rightarrow(+)$",
+        landmark_text=r"Sign change: $(-)\rightarrow(+)$",
         text_position=(0.95, 0.05),
     )
 
-    # Panel 3: Autocatalysis
-    # Curve ends negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[2],
         t,
         autocatalytic,
-        title="Autocatalysis",
+        title="Autocatalytic product",
         reaction=r"($A + B \rightarrow 2B$)",
-        landmark_text=r"Sign Change: $(+)\rightarrow(-)$",
+        landmark_text=r"Sign change: $(+)\rightarrow(-)$",
         text_position=(0.95, 0.90),
     )
 
-    fig.supylabel(
-        r"Progress-variable acceleration ($\ddot{x}$)",
-        fontsize=12,
-        x=-0.045,
-    )
+    fig.supylabel(r"Progress-variable acceleration ($\ddot{x}$)", fontsize=12, x=-0.01)
     fig.suptitle(
         r"Monitored quantity in every panel: $x(t)=[B](t)$",
         fontsize=10.5,
