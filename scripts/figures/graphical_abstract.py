@@ -1,18 +1,18 @@
 """graphical_abstract.py
 
 Graphical abstract for the ChemSystemsChem research article:
-"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics".[cite: 1]
+"Reaction Acceleration: Reviving the Second Derivative in Chemical Kinetics".
 
-The figure emphasizes that the sign pattern of the acceleration 
-(d^2[B]/dt^2 for a monitored progress variable B) distinguishes:[cite: 1]
+The figure emphasizes that the sign pattern of the acceleration
+(d^2[B]/dt^2 for a monitored progress variable B) distinguishes:
 
-- single-step relaxation (no sign change; typically negative for product 
-  formation when the rate decreases),[cite: 1]
-- intermediacy in consecutive reactions (negative-to-positive),[cite: 1]
-- feedback in autocatalysis (positive-to-negative).[cite: 1]
+- single-step relaxation (no sign change; typically negative for product
+  formation when the rate decreases),
+- intermediacy in consecutive reactions (negative-to-positive),
+- feedback in autocatalysis (positive-to-negative).
 
-Units are omitted for compactness; the goal is conceptual rather than 
-quantitative.[cite: 1]
+Units are omitted for compactness; the goal is conceptual rather than
+quantitative.
 
 Scientific clarification
 ------------------------
@@ -24,7 +24,7 @@ a first-order relaxation is necessarily negative.
 
 The figure is deterministic: no random numbers are used.
 
-Dependencies: NumPy, Matplotlib.[cite: 1]
+Dependencies: NumPy, Matplotlib.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ import numpy as np
 
 
 # ------------------------------------------------------------------------------
-# 1. Style & Configuration[cite: 1]
+# 1. Style & Configuration
 # ------------------------------------------------------------------------------
 
 try:
@@ -64,15 +64,15 @@ except ImportError:
 apply_style()
 
 COLORS = {
-    "line": "#444444",      # dark gray[cite: 1]
-    "pos": "#4DAF4A",       # positive acceleration: green[cite: 1]
-    "neg": "#E66101",       # negative acceleration: orange[cite: 1]
-    "zero_dot": "#D00000",  # zero crossing: red[cite: 1]
+    "line": "#444444",      # dark gray
+    "pos": "#4DAF4A",       # positive acceleration: green
+    "neg": "#E66101",       # negative acceleration: orange
+    "zero_dot": "#D00000",  # zero crossing: red
 }
 
 
 # ------------------------------------------------------------------------------
-# 2. Analytical Acceleration Functions[cite: 1]
+# 2. Analytical Acceleration Functions
 # ------------------------------------------------------------------------------
 
 def acc_first_order(t: np.ndarray, k: float = 1.0) -> np.ndarray:
@@ -132,7 +132,7 @@ def _zero_crossing_times(t: np.ndarray, y: np.ndarray) -> list[float]:
 
 
 # ------------------------------------------------------------------------------
-# 3. Plotting with Custom Positioning[cite: 1]
+# 3. Plotting with Custom Positioning
 # ------------------------------------------------------------------------------
 
 def plot_landmark(
@@ -145,17 +145,17 @@ def plot_landmark(
     text_position: tuple[float, float],
 ) -> None:
     """
-    Draws a single panel with the acceleration curve, shading, and landmark.[cite: 1]
-    text_position: tuple (x, y) in axes coordinates for the landmark label.[cite: 1]
+    Draws a single panel with the acceleration curve, shading, and landmark.
+    text_position: tuple (x, y) in axes coordinates for the landmark label.
     """
-    
-    # Draw curve[cite: 1]
+
+    # Draw curve
     ax.plot(t, acceleration, color=COLORS["line"], zorder=5)
-    
-    # Zero line[cite: 1]
+
+    # Zero line
     ax.axhline(0.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
 
-    # Shading[cite: 1]
+    # Shading
     ax.fill_between(
         t,
         0.0,
@@ -175,7 +175,7 @@ def plot_landmark(
         interpolate=True,
     )
 
-    # Landmark Dot (Zero Crossing)[cite: 1]
+    # Landmark Dot (Zero Crossing)
     for crossing in _zero_crossing_times(t, acceleration):
         ax.scatter(
             [crossing],
@@ -187,13 +187,13 @@ def plot_landmark(
             zorder=10,
         )
 
-    # Annotations[cite: 1]
+    # Annotations
     ax.set_title(f"{title}\n{reaction}", fontsize=11, fontweight="bold", pad=10)
 
-    # Text Label with Custom Position[cite: 1]
+    # Text Label with Custom Position
     horizontal_alignment = "right" if text_position[0] > 0.5 else "left"
     vertical_alignment = "top" if text_position[1] > 0.5 else "bottom"
-    
+
     ax.text(
         text_position[0],
         text_position[1],
@@ -206,7 +206,7 @@ def plot_landmark(
         bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 2},
     )
 
-    # Clean axes[cite: 1]
+    # Clean axes
     ax.set_yticks([])
     ax.set_xlabel("Time", fontsize=10)
     ax.spines["top"].set_visible(False)
@@ -227,7 +227,7 @@ def main() -> tuple[Path, Path]:
     """Generate vector PDF and 300-dpi PNG outputs."""
     t = np.linspace(0.0, 6.0, 500)
 
-    # Normalized Data[cite: 1]
+    # Normalized Data
     first_order = _normalize(acc_first_order(t))
     consecutive = _normalize(acc_consecutive(t))
     autocatalytic = _normalize(acc_autocatalytic(t))
@@ -243,8 +243,8 @@ def main() -> tuple[Path, Path]:
 
     fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.25), constrained_layout=True)
 
-    # Panel 1: First Order[cite: 1]
-    # Curve is always negative (bottom). Place text at Top-Right.[cite: 1]
+    # Panel 1: First Order
+    # Curve is always negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[0],
         t,
@@ -253,10 +253,10 @@ def main() -> tuple[Path, Path]:
         reaction=r"($A \rightarrow B$)",
         landmark_text="Always Negative",
         text_position=(0.95, 0.90),
-    ) 
+    )
 
-    # Panel 2: Consecutive[cite: 1]
-    # Curve ends positive (top). Place text at Bottom-Right.[cite: 1]
+    # Panel 2: Consecutive
+    # Curve ends positive (top). Place text at Bottom-Right.
     plot_landmark(
         axes[1],
         t,
@@ -267,8 +267,8 @@ def main() -> tuple[Path, Path]:
         text_position=(0.95, 0.05),
     )
 
-    # Panel 3: Autocatalysis[cite: 1]
-    # Curve ends negative (bottom). Place text at Top-Right.[cite: 1]
+    # Panel 3: Autocatalysis
+    # Curve ends negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[2],
         t,
