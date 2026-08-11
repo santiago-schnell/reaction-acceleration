@@ -57,13 +57,15 @@ GCV selection and bootstrap refits inexpensive. A quartic basis ($k=4$) is
 the default, giving a piecewise-quadratic — rather than piecewise-linear —
 second derivative.
 
-On the canonical autocatalysis benchmark, GCV removes essentially all of
-the fixed rule's landmark bias (point-estimate bias falls from roughly
+On the canonical autocatalysis benchmark, GCV substantially reduced the
+fixed rule's landmark bias (point-estimate bias falls from roughly
 $-0.11$ to $-0.15$ s down to within $\pm 0.03$ s across $\sigma/\text{range}
-\in [0.5\%, 5\%]$) and restores 95% bootstrap-CI coverage to its nominal
-level (SI §9.3). It is the recommended choice for quantitative landmark
-work. The fixed-`s` rule below is retained as a transparent, easily audited
-fallback and as the cautionary example in SI §7.6.
+\in [0.5\%, 5\%]$). Empirical 95% bootstrap-CI coverage was 98--100% and
+was compatible with nominal coverage given the Monte Carlo uncertainty from
+50 realizations per level (SI §9.3). It is the recommended choice for
+quantitative landmark work. The fixed-`s` rule below is retained as a
+transparent, easily audited fallback and as the cautionary example in SI
+§7.6.
 
 ## Smoothing splines (fixed penalty): `method="spline"`
 
@@ -150,6 +152,11 @@ $B = 500$ replicates is typically sufficient. The
 emits a warning if more than 20% of bootstrap replicates fail to detect
 the landmark (feature unstable at current data quality). Pass
 `return_diagnostics=True` to inspect the success/failure breakdown.
+
+The ordinary residual bootstrap assumes that residuals are approximately
+independent and homoscedastic after smoothing. Use a wild or replicate-based
+bootstrap for heteroscedastic errors and a block or model-based bootstrap for
+serially correlated errors.
 
 See SI §8 for the full bootstrap algorithm and §8.3 for a worked numerical example on the canonical autocatalytic data set.
 

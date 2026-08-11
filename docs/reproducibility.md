@@ -50,8 +50,10 @@ Expected output for the default seed (`rng = np.random.default_rng(42)`):
 
 ```
 True inflection (theory)  : 2.5945 s
-Base-fit estimate (t*)    : 2.4324 s
-95% CI (percentile)       : [2.2302, 2.6537] s
+Fixed-rule estimate       : 2.4324 s
+Fixed-rule 95% CI         : [2.2302, 2.6145] s
+GCV estimate              : 2.5677 s
+GCV 95% CI                : [2.4533, 2.6816] s
 ```
 
 Minor differences (up to ~0.05 s in the point estimate and ~0.1 s in the
@@ -81,7 +83,7 @@ Each script prints the table it backs. `verification_table.py` also writes `data
 pytest
 ```
 
-Expected output: `26 passed`.
+Expected output: `31 passed`.
 
 ## Determinism
 
@@ -105,7 +107,7 @@ Expected output: `26 passed`.
 
 ## Release archiving
 
-Before publication, create an immutable `v0.5.0` tag and archive it through
-Zenodo or an equivalent repository. Update the manuscript and `CITATION.cff`
-with the DOI after it is minted. The submitted pre-archive metadata therefore
-records the version and repository URL but intentionally omits a DOI.
+Create an immutable `v0.5.1` tag for the proof-corrected software and archive
+it through Zenodo or an equivalent repository. Update the article citation and
+`CITATION.cff` with the DOI after it is minted. Until then, the metadata record
+the version and repository URL but intentionally omit a DOI.
