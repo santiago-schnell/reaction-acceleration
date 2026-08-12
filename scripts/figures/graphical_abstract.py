@@ -58,9 +58,9 @@ except ImportError:
 apply_style()
 
 COLORS = {
-    "line": "#444444",      # dark gray
-    "pos": "#4DAF4A",       # positive acceleration: green
-    "neg": "#E66101",       # negative acceleration: orange
+    "line": "#444444",  # dark gray
+    "pos": "#4DAF4A",  # positive acceleration: green
+    "neg": "#E66101",  # negative acceleration: orange
     "zero_dot": "#D00000",  # zero crossing: red
 }
 
@@ -191,7 +191,11 @@ def plot_landmark(
 def _output_directory(script_path: Path) -> Path:
     """Choose the repository output directory when the expected tree exists."""
     parents = script_path.resolve().parents
-    if len(parents) >= 3 and script_path.parent.name == "figures" and script_path.parent.parent.name == "scripts":
+    if (
+        len(parents) >= 3
+        and script_path.parent.name == "figures"
+        and script_path.parent.parent.name == "scripts"
+    ):
         return parents[2] / "outputs" / "figures"
     return script_path.resolve().parent / "outputs" / "figures"
 
@@ -205,13 +209,23 @@ def main() -> tuple[Path, Path]:
     autocatalytic = _normalize(acc_autocatalytic(t))
 
     # Sanity checks for the intended taxonomy.
-    assert np.all(first_order < 0.0), "First-order product acceleration must remain negative."
+    assert np.all(first_order < 0.0), (
+        "First-order product acceleration must remain negative."
+    )
     consecutive_crossings = _zero_crossing_times(t, consecutive)
     autocatalytic_crossings = _zero_crossing_times(t, autocatalytic)
-    assert len(consecutive_crossings) == 1, "Consecutive intermediate should have one zero crossing."
-    assert len(autocatalytic_crossings) == 1, "Autocatalytic product should have one zero crossing."
-    assert consecutive[0] < 0.0 < consecutive[-1], "Expected a negative-to-positive transition."
-    assert autocatalytic[0] > 0.0 > autocatalytic[-1], "Expected a positive-to-negative transition."
+    assert len(consecutive_crossings) == 1, (
+        "Consecutive intermediate should have one zero crossing."
+    )
+    assert len(autocatalytic_crossings) == 1, (
+        "Autocatalytic product should have one zero crossing."
+    )
+    assert consecutive[0] < 0.0 < consecutive[-1], (
+        "Expected a negative-to-positive transition."
+    )
+    assert autocatalytic[0] > 0.0 > autocatalytic[-1], (
+        "Expected a positive-to-negative transition."
+    )
 
     fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.25), constrained_layout=True)
 
