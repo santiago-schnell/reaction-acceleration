@@ -55,6 +55,9 @@ except ImportError:
         )
 
 
+# ------------------------------------------------------------------------------
+# 1. Style & Configuration
+# ------------------------------------------------------------------------------
 apply_style()
 
 COLORS = {
@@ -63,6 +66,10 @@ COLORS = {
     "neg": "#E66101",  # negative acceleration: orange
     "zero_dot": "#D00000",  # zero crossing: red
 }
+
+# ------------------------------------------------------------------------------
+# 2. Analytical Acceleration Functions
+# ------------------------------------------------------------------------------
 
 
 def acc_first_order(t: np.ndarray, k: float = 1.0) -> np.ndarray:
@@ -121,6 +128,11 @@ def _zero_crossing_times(t: np.ndarray, y: np.ndarray) -> list[float]:
     return crossings
 
 
+# ------------------------------------------------------------------------------
+# 3. Plotting with Custom Positioning
+# ------------------------------------------------------------------------------
+
+
 def plot_landmark(
     ax: plt.Axes,
     t: np.ndarray,
@@ -130,10 +142,17 @@ def plot_landmark(
     landmark_text: str,
     text_position: tuple[float, float],
 ) -> None:
-    """Draw one acceleration-sign panel."""
+    """Draw one acceleration-sign panel.
+
+    text_position: tuple (x, y) in axes coordinates for the landmark label.
+    """
+    # Draw curve
     ax.plot(t, acceleration, color=COLORS["line"], zorder=5)
+
+    # Zero line
     ax.axhline(0.0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
 
+    # Shading
     ax.fill_between(
         t,
         0.0,
@@ -153,6 +172,7 @@ def plot_landmark(
         interpolate=True,
     )
 
+    # Landmark Dot (Zero Crossing)
     for crossing in _zero_crossing_times(t, acceleration):
         ax.scatter(
             [crossing],
@@ -164,8 +184,12 @@ def plot_landmark(
             zorder=10,
         )
 
+    # Annotations
     ax.set_title(f"{title}\n{reaction}", fontsize=11, fontweight="bold", pad=10)
 
+    # Text Label with Custom Position
+    # Using alignment 'right' or 'left' based on x-position could be dynamic,
+    # but fixed 'right' alignment with careful coordinates works well.
     horizontal_alignment = "right" if text_position[0] > 0.5 else "left"
     vertical_alignment = "top" if text_position[1] > 0.5 else "bottom"
     ax.text(
@@ -180,6 +204,7 @@ def plot_landmark(
         bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 2},
     )
 
+    # Clean axes
     ax.set_yticks([])
     ax.set_xlabel("Time", fontsize=10)
     ax.spines["top"].set_visible(False)
@@ -204,31 +229,34 @@ def main() -> tuple[Path, Path]:
     """Generate vector PDF and 300-dpi PNG outputs."""
     t = np.linspace(0.0, 6.0, 500)
 
+    # Normalized Data
     first_order = _normalize(acc_first_order(t))
     consecutive = _normalize(acc_consecutive(t))
     autocatalytic = _normalize(acc_autocatalytic(t))
 
     # Sanity checks for the intended taxonomy.
-    assert np.all(first_order < 0.0), (
-        "First-order product acceleration must remain negative."
-    )
+    assert np.all(
+        first_order < 0.0
+    ), "First-order product acceleration must remain negative."
     consecutive_crossings = _zero_crossing_times(t, consecutive)
     autocatalytic_crossings = _zero_crossing_times(t, autocatalytic)
-    assert len(consecutive_crossings) == 1, (
-        "Consecutive intermediate should have one zero crossing."
-    )
-    assert len(autocatalytic_crossings) == 1, (
-        "Autocatalytic product should have one zero crossing."
-    )
-    assert consecutive[0] < 0.0 < consecutive[-1], (
-        "Expected a negative-to-positive transition."
-    )
-    assert autocatalytic[0] > 0.0 > autocatalytic[-1], (
-        "Expected a positive-to-negative transition."
-    )
+    assert (
+        len(consecutive_crossings) == 1
+    ), "Consecutive intermediate should have one zero crossing."
+    assert (
+        len(autocatalytic_crossings) == 1
+    ), "Autocatalytic product should have one zero crossing."
+    assert (
+        consecutive[0] < 0.0 < consecutive[-1]
+    ), "Expected a negative-to-positive transition."
+    assert (
+        autocatalytic[0] > 0.0 > autocatalytic[-1]
+    ), "Expected a positive-to-negative transition."
 
     fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.25), constrained_layout=True)
 
+    # Panel 1: First Order
+    # Curve is always negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[0],
         t,
@@ -237,8 +265,10 @@ def main() -> tuple[Path, Path]:
         reaction=r"($A \rightarrow B$)",
         landmark_text="Always negative",
         text_position=(0.95, 0.90),
-    )
+    )  # Top Right
 
+    # Panel 2: Consecutive
+    # Curve ends positive (top). Place text at Bottom-Right.
     plot_landmark(
         axes[1],
         t,
@@ -247,8 +277,10 @@ def main() -> tuple[Path, Path]:
         reaction=r"($A \rightarrow B \rightarrow C$)",
         landmark_text=r"Sign change: $(-)\rightarrow(+)$",
         text_position=(0.95, 0.05),
-    )
+    )  # Bottom Right
 
+    # Panel 3: Autocatalysis
+    # Curve ends negative (bottom). Place text at Top-Right.
     plot_landmark(
         axes[2],
         t,
@@ -257,7 +289,7 @@ def main() -> tuple[Path, Path]:
         reaction=r"($A + B \rightarrow 2B$)",
         landmark_text=r"Sign change: $(+)\rightarrow(-)$",
         text_position=(0.95, 0.90),
-    )
+    )  # Top Right
 
     fig.supylabel(r"Progress-variable acceleration ($\ddot{x}$)", fontsize=12, x=-0.01)
     fig.suptitle(
@@ -266,10 +298,10 @@ def main() -> tuple[Path, Path]:
         fontweight="semibold",
     )
 
-    output_dir = _output_directory(Path(__file__))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = output_dir / "Graphical_Abstract.pdf"
-    png_path = output_dir / "Graphical_Abstract.png"
+    outdir = _output_directory(Path(__file__))
+    outdir.mkdir(parents=True, exist_ok=True)
+    pdf_path = outdir / "Graphical_Abstract.pdf"
+    png_path = outdir / "Graphical_Abstract.png"
 
     fig.savefig(pdf_path, format="pdf", bbox_inches="tight")
     fig.savefig(png_path, format="png", bbox_inches="tight", dpi=300)
