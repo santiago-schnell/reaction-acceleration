@@ -202,9 +202,7 @@ def main():
     outdir = Path(__file__).resolve().parents[2] / "outputs" / "figures"
     outdir.mkdir(parents=True, exist_ok=True)
     plt.savefig(outdir / "Graphical_Abstract.pdf", format="pdf", bbox_inches="tight")
-    plt.savefig(
-        outdir / "Graphical_Abstract.png", format="png", bbox_inches="tight", dpi=300
-    )
+    plt.savefig(outdir / "Graphical_Abstract.png", format="png", bbox_inches="tight", dpi=300)
     print("Graphical Abstract saved successfully.")
 
 
